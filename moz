@@ -1,0 +1,1 @@
+make @$ && scp bin/*.swf jsarout@cinemoz0.cinemoz.com:/home/jsarout/yelo/plack/public/swf/
