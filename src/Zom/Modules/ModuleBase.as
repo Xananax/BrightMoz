@@ -29,6 +29,8 @@ package Zom.Modules{
 	import flash.events.ProgressEvent;
 	import flash.events.TimerEvent;
 	import flash.events.MouseEvent;
+	import com.brightcove.api.events.MediaEvent;
+	import com.brightcove.api.events.AdEvent;
 
 	import fl.transitions.Tween;
 	import fl.transitions.easing.*;
@@ -316,12 +318,40 @@ package Zom.Modules{
 			return _moz.isSeeking;
 		}
 
+		protected function _onMediaBegin(e:Event):void{
+
+		}
+
 		protected function _onMediaPlay(e:Event):void{
 
 		}
 
 		protected function _onMediaStop(e:Event):void{
 			
+		}
+
+		protected function adStartHandler(e:AdEvent):void{
+
+		}
+
+		protected function adCompleteHandler(e:AdEvent):void{
+
+		}
+
+		protected function _onSeek(e:MediaEvent):void{
+
+		}
+
+		protected function _onSeekComplete(e:MediaEvent):void{
+
+		}
+
+		protected function _onBufferBegin(e:MediaEvent):void{
+
+		}
+
+		protected function _onBufferComplete(e:MediaEvent):void{
+
 		}
 	
 	}

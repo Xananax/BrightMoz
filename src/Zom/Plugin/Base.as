@@ -344,12 +344,12 @@ package Zom.Plugin{
 			return this._isPlaying;
 		}
 
-		protected function adStartHandler(event:AdEvent):void {
+		protected function adStartHandler(evt:AdEvent):void {
 			_adPlaying = true;
 			dispatchEvent(evt);
 		}
 
-		protected function adCompleteHandler(event:AdEvent):void {
+		protected function adCompleteHandler(evt:AdEvent):void {
 			_adPlaying = false;
 			dispatchEvent(evt);
 		}

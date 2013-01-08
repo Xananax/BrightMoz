@@ -88,7 +88,7 @@ Package Zom.Main{
 		protected static var _queue:LoaderMax;
 		protected static var _garbage:Object = {};
 		protected static var _externalInterfaceSet:Boolean = false;
-		protected static var urlVars:URLVariables = new URLVariables();
+		protected static var _params:Object = null;
 		protected static const LOG_LEVEL_VERBOSE = 0;
 		protected static const LOG_LEVEL_LOG = 1;
 		protected static const LOG_LEVEL_IMPORTANT = 2;
@@ -339,6 +339,7 @@ Package Zom.Main{
 		protected static function place(values:Object,Obj:DisplayObject, container:DisplayObject):void{
 			var $x:*=null,$y:*=null, $type:String = getQualifiedClassName(values);
 			if($type == 'String'){
+				var urlVars:URLVariables = new URLVariables();
 				urlVars.decode(values as String);
 				$x = urlVars.x;
 				$y = urlVars.y;
@@ -404,13 +405,55 @@ Package Zom.Main{
 			}
 		}
 
-		public static function callJs(methodName:String,args:Object=null,callBack:function):void{
+		/**
+		 * Calls a Js method
+		 * @param  methodName String the name of the method
+		 * @param  args       Array an array of arguments
+		 * @param  callBack   Function  function to call when the method returns
+		 * @return            * the returning value from the call, or an Error if the call failed
+		 */
+		public static function callJs(methodName:String,args:Object=null,callBack:function):*{
+			var $ret:*;
 			if(_setExternalInterface){
 				try{
-					ExternalInterface.call(methodName,args,callBack)
+					$ret = ExternalInterface.call(methodName,args,callBack)
 				}catch(e:Error){
 					log('error trying to call javascript function '+methodName+':'+e.message,LOG_LEVEL_ERROR);
+					$ret = e;
 				}
+			}
+			return $ret;
+		}
+
+		/**
+		 * Loads a parameter from the flashvars
+		 * @param  stage      Stage main stage to load the parameters from
+		 * @param  param      String the param name
+		 * @param  def:*=null * Default value of the parameter
+		 * @return            returns the param, if found, or the default value
+		 */
+		public static function param(stage:Stage, param:String=null,def:*=null):*{
+			if(!_params){
+				_params = LoaderInfo(stage.loaderInfo).parameters;
+			}
+			if(param==null){return _params;}
+			if(_params[param]){return _params[param];}
+			return default;
+		}
+
+		/**
+		 * Loads a set of parameters from the flashvars, optionally adding a namespace to them (so parameter 'x' is loaded from flashvar 'movie_x' for example)
+		 * @param  stage     Stage the stage to load the parameters from
+		 * @param  params    Object an object of properties
+		 * @param  namespace String an optional namespace. Don't include the trailing "_", as it will be added
+		 * @return           void
+		 */
+		public function loadParams(stage:Stage, params:Object, namespace:String=''):void{
+			var parameter:String;
+			if(namespace){namespace+='_';}
+			for(parameter in params){
+				if(parameter.indexOf('_') == 0){continue;}
+				params[parameter] = param(stage,namespace+parameter,params[parameter]);
 			}
 		}
 
