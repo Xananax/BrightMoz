@@ -6,8 +6,6 @@ package{
 	public class Player extends Moz{
 
 		public function Player():void{
-			Security.allowDomain('*');
-			Security.allowInsecureDomain('*');
 			super();
 		}
 

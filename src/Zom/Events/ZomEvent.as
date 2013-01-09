@@ -6,6 +6,7 @@ package Zom.Events{
 
 		public static const MEDIA_PLAY:String = 'zom_media_plays';
 		public static const MEDIA_STOP:String = 'zom_media_stops';
+		public static const INIT:String = 'zom_init';
 
 		public function ZomEvent(type:String, bubbles:Boolean = false, cancelable:Boolean = false){
 			super(type,bubbles,cancelable);

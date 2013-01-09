@@ -1,25 +1,30 @@
-Package Zom.Main{
+package Zom.Main{
 
 	import Zom.Plugin.Base;
 	import Zom.Moz;
 	import Zom.Modules.*;
 	import Zom.Main.Utils;
+	import Zom.Main.Logger;
 	import Zom.Events.ZomEvent;
-
-	import org.osflash.thunderbolt.Logger;
 
 	import flash.display.Stage;
 	import flash.display.DisplayObject;
 	import flash.display.DisplayObjectContainer;
 	import flash.display.MovieClip;
 	import flash.display.Bitmap;
+	import flash.display.BitmapData;
 	import flash.display.Sprite;
+	import flash.display.Graphics;
+
+	import flash.geom.Rectangle;
 
 	import flash.net.URLRequest;
+	import flash.net.URLVariables;
 	import flash.display.Loader;
 	import flash.display.LoaderInfo;
 	import com.greensock.*;
 	import com.greensock.loading.*;
+	import com.greensock.loading.core.*;
 	import com.greensock.events.LoaderEvent;
 	import com.greensock.loading.display.*;
 
@@ -30,6 +35,7 @@ Package Zom.Main{
 	import flash.events.ProgressEvent;
 	import flash.events.TimerEvent;
 	import flash.events.EventDispatcher;
+	import flash.events.IEventDispatcher;
 
 	import fl.transitions.Tween;
 	import fl.transitions.easing.*;
@@ -38,47 +44,14 @@ Package Zom.Main{
 	import flash.external.ExternalInterface;
 
 	import flash.system.SecurityDomain;
+	import flash.system.Security;
 	import flash.system.LoaderContext;
 	import flash.system.ApplicationDomain;
 
 	import flash.utils.Timer;
 	import flash.utils.getQualifiedClassName;
-
-	private class Logger{
-
-		private var _name:String;
-		private var _virgin:Boolean = true;
-
-		public function Logger(n:String){
-			_name = n;
-		}
-
-		public function log(something:*,level:int=0):void{
-			CONFIG::debug{
-				if(_virgin){
-					_virgin = false;
-					Logger.info(' ---- '+_name+' ---- ');
-				}
-				something = _name+':'+something;
-				Logger.info(something);
-			}
-		}
-
-		protected function debug(obj:*):String{
-			CONFIG::debug{
-				return Utils.debug(obj);
-			}
-			return '';
-		}
-	
-		protected function fnToStr(fn:Function):String{
-			CONFIG::debug{
-				return Utils.fnToStr(this,fn);
-			}
-			return '';
-		}
-
-	}
+	import flash.utils.getDefinitionByName;
+	import flash.net.navigateToURL;
 
 	public class Shared{
 
@@ -89,19 +62,22 @@ Package Zom.Main{
 		protected static var _garbage:Object = {};
 		protected static var _externalInterfaceSet:Boolean = false;
 		protected static var _params:Object = null;
-		protected static const LOG_LEVEL_VERBOSE = 0;
-		protected static const LOG_LEVEL_LOG = 1;
-		protected static const LOG_LEVEL_IMPORTANT = 2;
-		protected static const LOG_LEVEL_WARNING = 4;
-		protected static const LOG_LEVEL_ERROR = 8;
+		protected static var _on_load_complete:Array = [];
+		protected static var _on_load_error:Array = [];
+		protected static var _bitmap:BitmapData;
+		public static const LOG_LEVEL_VERBOSE:int = 0;
+		public static const LOG_LEVEL_LOG:int = 1;
+		public static const LOG_LEVEL_IMPORTANT:int = 2;
+		public static const LOG_LEVEL_WARNING:int = 4;
+		public static const LOG_LEVEL_ERROR:int = 8;
 
 		/**
 		 * Returns the next available unique Id
 		 * @return int the id
 		 */
 		public static function nextId():int{
-			var $id:int = ids;
-			ids++;
+			var $id:int = _ids;
+			_ids++;
 			return $id;
 		}
 
@@ -112,6 +88,18 @@ Package Zom.Main{
 		 */
 		public static function log(n:*,level:int=0):void{
 			getLogger('root')(n,int);
+		}
+
+		/**
+		 * Logs an error and returns an error to throw
+		 * @param  n        String the name of the logger
+		 * @param  $message String the error message
+		 * @return          Error
+		 */
+		public static function error(n:String,$message:String):Error{
+			var err:Error = new Error($message)
+			getLogger(n)($message,Shared.LOG_LEVEL_ERROR);
+			return err;
 		}
 
 		/**
@@ -128,19 +116,70 @@ Package Zom.Main{
 		 * Returns the loading queue
 		 * @return LoaderMax
 		 */
-		public static function get queue():LoaderMax{
+		public static function getQueue():LoaderMax{
 			if(!_queue){
 				LoaderMax.activate([ImageLoader, SWFLoader]);
 				_queue = new LoaderMax({
 					name:"mainQueue"
-				,	onComplete:completeHandler
-				,	onError:errorHandler
+				,	onComplete:Shared.onLoaderComplete
+				,	onError:Shared.onLoaderError
 				,	auditSize:false
-				,	autoLoad:true
-				,	defaultContext:loaderContext
+				,	autoLoad:false
+				,	defaultContext:Shared.getLoaderContext()
 				});
 			}
 			return _queue;
+		}
+
+		public static function queueLength():int{
+			return Shared.getQueue().numChildren;
+		}
+
+		public static function beginLoading():void{
+			Shared.getQueue().load();
+		}
+
+		protected static function onLoaderComplete(e:LoaderEvent):void{
+			for(var i:int=0;i<_on_load_complete.length;i++){
+				_on_load_complete[i](e);
+			}
+		}
+
+		protected static function onLoaderError(e:LoaderEvent):void{
+			for(var i:int=0;i<_on_load_error.length;i++){
+				_on_load_error[i](e);
+			}
+		}
+
+		public static function onLoadComplete(fn:Function,remove:Boolean = false):Boolean{
+			if(remove){
+				var $i:int = _on_load_complete.indexOf(remove);
+				if($i>=0){
+					_on_load_complete.splice($i,1);
+					return true;
+				}
+				return false;
+			}
+			_on_load_complete.push(fn);
+			return true;
+		}
+
+		public function onloadError(fn:Function,remove:Boolean = false):Boolean{
+			if(remove){
+				var $i:int = _on_load_error.indexOf(remove);
+				if($i>=0){
+					_on_load_error.splice($i,1);
+					return true;
+				}
+				return false;
+			}
+			_on_load_error.push(fn);
+			return true;
+		}
+
+		public static function setSecurity():void{
+			Security.allowDomain('*');
+			Security.allowInsecureDomain('*');
 		}
 
 		/**
@@ -157,21 +196,44 @@ Package Zom.Main{
 		}
 
 		/**
+		 * Creates a new LoaderMax instance and appends it to the default queue
+		 * @param  name       String
+		 * @param  properties Object
+		 * @return            LoaderMax
+		 */
+		public static function getLoader(name:String='',properties:Object = null):LoaderMax{
+			var $props:Object = {
+					name:name
+				,	auditSize:false
+				,	autoLoad:false
+				,	defaultContext:Shared.getLoaderContext()
+			}
+			if(properties){
+				extendObject($props,properties);
+			}
+			var $loader:LoaderMax = new LoaderMax($props);
+			Shared.getQueue().append($loader);
+			return $loader;
+		}
+
+		/**
 		 * Will automatically parse the url and try to create an ImageLoader or an SWFLoader accordingly
 		 * @param  url                  String the url to load
 		 * @param  complete             Function function to call when loading is successful
 		 * @param  additionalProperties An object of properties (refer to LoaderMax documentation)
+		 * @param  $queue               LoaderMax an instance of LoaderMax to append the loader to. If none provided, the default one will be used
 		 * @return                      LoaderMax a LoaderMax Instance
 		 */
-		public static function load(url:String,complete:Function,additionalProperties:Object=null):LoaderMax{
-			var $props = {
+		public static function load(url:String,complete:Function=null,additionalProperties:Object=null,$queue:LoaderMax=null):LoaderCore{
+			var $props:Object = {
 				onComplete: complete
 			,	name:'loader'+(_ids++)
 			,	auditSize:false
 			};
+			if(!$queue){$queue = Shared.getQueue();}
 			if(additionalProperties){extendObject($props,additionalProperties);}
-			var $loader:LoaderMax = new LoaderMax(url,$props);
-			queue.append($loader);
+			var $loader:LoaderCore = LoaderMax.parse(url,$props);
+			$queue.append($loader);
 			return $loader;
 		}
 
@@ -180,17 +242,19 @@ Package Zom.Main{
 		 * @param  url                  String the url to load
 		 * @param  complete             Function function to call when loading is successful
 		 * @param  additionalProperties An object of properties (refer to LoaderMax documentation)
+		 * @param  $queue               LoaderMax an instance of LoaderMax to append the loader to. If none provided, the default one will be used
 		 * @return                      ImageLoader an ImageLoader instance
 		 */
-		public static function loadImage(url:String,complete:Function,additionalProperties:Object=null):ImageLoader{
-			var $props = {
+		public static function loadImage(url:String,complete:Function=null,additionalProperties:Object=null,$queue:LoaderMax=null):ImageLoader{
+			var $props:Object = {
 				onComplete: complete
 			,	name:'swf'+(_ids++)
 			,	auditSize:false
 			};
+			if(!$queue){$queue = Shared.getQueue();}
 			if(additionalProperties){extendObject($props,additionalProperties);}
 			var $img:ImageLoader = new ImageLoader(url,$props);
-			queue.append($img);
+			$queue.append($img);
 			return $img;
 		}	
 
@@ -199,17 +263,19 @@ Package Zom.Main{
 		 * @param  url                  String the url to load
 		 * @param  complete             Function function to call when loading is successful
 		 * @param  additionalProperties An object of properties (refer to LoaderMax documentation)
+		 * @param  $queue               LoaderMax an instance of LoaderMax to append the loader to. If none provided, the default one will be used
 		 * @return                      SWFLoader a SWFLoader instance
 		 */
-		public static function loadSWF(url:String,complete:Function,additionalProperties:Object=null):SWFLoader{
-			var $props = {
+		public static function loadSWF(url:String,complete:Function=null,additionalProperties:Object=null,$queue:LoaderMax=null):SWFLoader{
+			var $props:Object = {
 				onComplete: complete
 			,	name:'img'+(_ids++)
 			,	auditSize:false
 			};
+			if(!$queue){$queue = Shared.getQueue();}
 			if(additionalProperties){extendObject($props,additionalProperties);}
-			var $swf:ImageLoader = new ImageLoader(url,$props);
-			queue.append($swf);
+			var $swf:SWFLoader = new SWFLoader(url,$props);
+			$queue.append($swf);
 			return $swf;
 		}
 
@@ -217,7 +283,7 @@ Package Zom.Main{
 		 * returns a loader context
 		 * @return LoaderContext a context to use in loaders
 		 */
-		public static function get loaderContext():LoaderContext{
+		public static function getLoaderContext():LoaderContext{
 			if(!_loaderContext){
 				_loaderContext = new LoaderContext();
 				_loaderContext.applicationDomain = ApplicationDomain.currentDomain;
@@ -259,10 +325,10 @@ Package Zom.Main{
 			return tween(obj,time,$props);
 		}
 
-		protected static function _makeHideCallback(fn:Function=null):void{
-			return function(alpha:Number,Obj:DisplayObject){
+		protected static function _makeHideCallback(fn:Function=null):Function{
+			return function(alpha:Number,obj:DisplayObject):void{
 				if(alpha<=0){obj.visible=false;}
-				if(fn){fn(alpha,obj);}
+				if(fn !== null){fn(alpha,obj);}
 			}
 		}
 
@@ -336,7 +402,7 @@ Package Zom.Main{
 		 * @param  container DisplayObject the object to place into
 		 * @return           void
 		 */
-		protected static function place(values:Object,Obj:DisplayObject, container:DisplayObject):void{
+		public static function place(values:Object,obj:DisplayObject, container:DisplayObject):void{
 			var $x:*=null,$y:*=null, $type:String = getQualifiedClassName(values);
 			if($type == 'String'){
 				var urlVars:URLVariables = new URLVariables();
@@ -355,7 +421,7 @@ Package Zom.Main{
 					$x = values.x;
 				}
 				if('y' in values){
-					y = values.y;
+					$y = values.y;
 				}
 			}
 			if($x!==null){
@@ -387,20 +453,20 @@ Package Zom.Main{
 		 * @return            void
 		 */
 		public static function exportMethod(obj:Object,methodName:String):void{
-			if(_setExternalInterface){
-				var $method = obj['js_'+methodName];
+			if(_setExternalInterface()){
+				var $method:* = obj['js_'+methodName];
 				if(!$method || !($method is Function)){
 					$method = obj[methodName];
 				}
 				if(!$method || !($method is Function)){return;}
-				var $callback = function(args:Array){
+				var $callback:Function = function(args:Array):void{
 					try{
-						$method.apply(obj,args);
+						($method as Function).apply(obj,args);
 					}catch(e:Error){
 						log('error trying to call '+methodName+' from javascript:' + e.message,LOG_LEVEL_ERROR);
 					}
 				}
-				_garbage[nextId()] = $callBack;
+				_garbage[nextId()] = $callback;
 				ExternalInterface.addCallback(methodName,$callback);
 			}
 		}
@@ -412,9 +478,9 @@ Package Zom.Main{
 		 * @param  callBack   Function  function to call when the method returns
 		 * @return            * the returning value from the call, or an Error if the call failed
 		 */
-		public static function callJs(methodName:String,args:Object=null,callBack:function):*{
+		public static function callJs(methodName:String,args:Object=null,callBack:Function=null):*{
 			var $ret:*;
-			if(_setExternalInterface){
+			if(_setExternalInterface()){
 				try{
 					$ret = ExternalInterface.call(methodName,args,callBack)
 				}catch(e:Error){
@@ -438,7 +504,7 @@ Package Zom.Main{
 			}
 			if(param==null){return _params;}
 			if(_params[param]){return _params[param];}
-			return default;
+			return def;
 		}
 
 		/**
@@ -448,13 +514,89 @@ Package Zom.Main{
 		 * @param  namespace String an optional namespace. Don't include the trailing "_", as it will be added
 		 * @return           void
 		 */
-		public function loadParams(stage:Stage, params:Object, namespace:String=''):void{
+		public static function loadParams(stage:Stage, params:Object, $namespace:String=''):void{
 			var parameter:String;
-			if(namespace){namespace+='_';}
+			if($namespace){$namespace+='_';}
 			for(parameter in params){
 				if(parameter.indexOf('_') == 0){continue;}
-				params[parameter] = param(stage,namespace+parameter,params[parameter]);
+				params[parameter] = param(stage,$namespace+parameter,params[parameter]);
 			}
+		}
+
+		/**
+		 * Runs the specified function when the object is added to stage
+		 * @param  Obj    EventDispatcher the object to listen to
+		 * @param  func:* String|Function a function or the name of a function (in which case it will be assumed to be public and found in Obj)
+		 * @return        void
+		 */
+		public static function onReadyInit(obj:EventDispatcher,func:*='onAddedToStage'):void{
+			var $func:Function = (func is Function)?
+				$func = func
+				:(func is String && obj[func] && obj[func] is Function)?
+					obj[func]
+					:null
+			;
+			if(!($func is Function)){
+				log('Error: could not set onReady callback '+func+' for '+obj);
+				return;
+			}
+			var $onAddedToStage:Function = function(e:Event):void{
+				obj.removeEventListener(Event.ADDED_TO_STAGE,$onAddedToStage)
+				$func();
+			}
+			obj.addEventListener(Event.ADDED_TO_STAGE,$onAddedToStage);
+		}
+
+		/**
+		 * Opens a browser window with the specified url
+		 * @param  url        String the url to go to
+		 * @param  target     String defaults to "_blank"
+		 */
+		public static function openWindow(url:String,target:String="_blank"):void{
+			if(url!==''){
+				//var req:URLRequest = new URLRequest(url);
+				//navigateToURL(req, '_blank');
+				var jscommand:String = "window.open('"+url+"','_blank');"; 
+				var req:URLRequest = new URLRequest("javascript:" + jscommand + " void(0);"); 
+				navigateToURL(req, "_self");
+			}
+		}
+
+		public static function classFromName($str:String):Class{
+			try{
+				return getDefinitionByName($str) as Class;
+			}catch(e:Error){
+				error('root','no class exists by the name '+$str);
+			}
+			return null;
+		}
+
+		/**
+		 * Splits a string by a delimiter, cleaning up the resulting array (removing empty values)
+		 * @param  $str      String the string to split
+		 * @param  $splitter String the delimiter
+		 * @return           Array the cleaned up array
+		 */
+		public static function splitString($str:String,$splitter:String='||'):Array{
+			return $str.split($splitter).filter(splitStringFilter);
+		}
+
+		protected static function splitStringFilter(item:*, index:int, array:Array):Boolean{
+			return item != "";
+		}
+
+		/**
+		 * Creates a rectangle according to the size of the visible area of the display object provided
+		 * @param  $canvas DisplayObject
+		 * @return         Rectangle the bounding box of the visible area
+		 */
+		public static function getVisibleArea($canvas:DisplayObject):Rectangle{
+			_bitmap = new BitmapData($canvas.width,$canvas.height,true,0);
+			_bitmap.draw($canvas);
+			var rect:Rectangle = _bitmap.getColorBoundsRect(0xff000000,0xff000000,false);
+			rect.x = $canvas.x;
+			rect.y = $canvas.y;
+			return rect;
 		}
 
 	}
