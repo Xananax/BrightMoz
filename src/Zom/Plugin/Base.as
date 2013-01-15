@@ -75,8 +75,8 @@ package Zom.Plugin{
 			Security.allowDomain('*');
 			Security.allowInsecureDomain('*');
 			//log('id:'+ExternalInterface.objectID+' | available:'+ExternalInterface.available);
-			ExternalInterface.marshallExceptions = true;
-			registerJs('domReady');
+			//ExternalInterface.marshallExceptions = true;
+			//registerJs('domReady');
 			this.mouseChildren = true;
 			addEventListener(Event.ADDED_TO_STAGE,_onAddedToStage);
 		}
