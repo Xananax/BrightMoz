@@ -131,26 +131,47 @@ package Zom.Main{
 			return _queue;
 		}
 
+		/**
+		 * Returns the length of the queue of assets to load
+		 * @return the length
+		 */
 		public static function queueLength():int{
 			return Shared.getQueue().numChildren;
 		}
 
+		/**
+		 * Begins the general loading of assets
+		 */
 		public static function beginLoading():void{
 			Shared.getQueue().load();
 		}
 
+		/**
+		 * Called when all assets in the loader queue have loaded
+		 * @param  e the event
+		 */
 		protected static function onLoaderComplete(e:LoaderEvent):void{
 			for(var i:int=0;i<_on_load_complete.length;i++){
 				_on_load_complete[i](e);
 			}
 		}
 
+		/**
+		 * Called when an asset in the loader queue has an error
+		 * @param  e the event
+		 */
 		protected static function onLoaderError(e:LoaderEvent):void{
 			for(var i:int=0;i<_on_load_error.length;i++){
 				_on_load_error[i](e);
 			}
 		}
 
+		/**
+		 * TODO: wtf is going on
+		 * @param  fn     [description]
+		 * @param  remove [description]
+		 * @return        [description]
+		 */
 		public static function onLoadComplete(fn:Function,remove:Boolean = false):Boolean{
 			if(remove){
 				var $i:int = _on_load_complete.indexOf(remove);
@@ -164,7 +185,13 @@ package Zom.Main{
 			return true;
 		}
 
-		public function onloadError(fn:Function,remove:Boolean = false):Boolean{
+		/**
+		 * TODO: wtf is going on
+		 * @param  fn     [description]
+		 * @param  remove [description]
+		 * @return        [description]
+		 */
+		public function onLoadError(fn:Function,remove:Boolean = false):Boolean{
 			if(remove){
 				var $i:int = _on_load_error.indexOf(remove);
 				if($i>=0){
@@ -177,6 +204,9 @@ package Zom.Main{
 			return true;
 		}
 
+		/**
+		 * Sets security to allow all domains
+		 */
 		public static function setSecurity():void{
 			Security.allowDomain('*');
 			Security.allowInsecureDomain('*');
@@ -562,6 +592,11 @@ package Zom.Main{
 			}
 		}
 
+		/**
+		 * Returns a Class object from a string
+		 * @param  $str the name of the class
+		 * @return      the Class object
+		 */
 		public static function classFromName($str:String):Class{
 			try{
 				return getDefinitionByName($str) as Class;
@@ -581,6 +616,13 @@ package Zom.Main{
 			return $str.split($splitter).filter(splitStringFilter);
 		}
 
+		/**
+		 * Used internally as the filter of splitString()
+		 * @param  item:* anything
+		 * @param  index  the current index in the loop
+		 * @param  array  the current array being processed
+		 * @return        
+		 */
 		protected static function splitStringFilter(item:*, index:int, array:Array):Boolean{
 			return item != "";
 		}

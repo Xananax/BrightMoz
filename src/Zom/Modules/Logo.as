@@ -69,12 +69,23 @@ package Zom.Modules{
 			this.addToParent();
 		}
 
+		/**
+		 * parses parameters, sets the values for frequency and how long the overlay displays
+		 */
 		override protected function parseParams():void{
 			super.parseParams();
 			_params['displayFor'] = int(_params['displayFor']);
 			_params['frequency'] = int(_params['frequency']);
 		}
 
+		/**
+		 * At that point:
+		 *  - Brightcove player should have loaded and brightcove modules have been set
+		 *  - Moz modules have loaded
+		 *  - Assets needed by every Moz module have loaded and are ready
+		 *  - the module has been placed on stage
+		 *  this also sets and places the logo, the background, and the texts
+		 */
 		override protected function ready():void{
 			var $logoLoader:ContentDisplay = this.getLoaderContent('logo');
 			var $backgroundLoader:ContentDisplay = this.getLoaderContent('background');
@@ -100,6 +111,10 @@ package Zom.Modules{
 			track();
 		}
 
+		/**
+		 * Returns the display timer, or creates it and sets the relevant event listeners
+		 * @return the timer
+		 */
 		public function get displayTimer():Timer{
 			if(!this._displayTimer){
 				this._displayTimer = new Timer(_params['displayFor'],1);
@@ -108,6 +123,10 @@ package Zom.Modules{
 			return this._displayTimer;
 		}
 
+		/**
+		 * Returns the frequency timer, or creates it and sets the relevant event listeners
+		 * @return the timer
+		 */
 		public function get frequencyTimer():Timer{
 			if(!this._frequencyTimer){
 				var $freq:int = _params['frequency'];
@@ -125,11 +144,19 @@ package Zom.Modules{
 			return this._frequencyTimer;
 		}
 
+		/**
+		 * Called each time the frequency timer ticks
+		 * @param  e the event
+		 */
 		protected function onFrequencyTick(e:TimerEvent):void{
 			_minutesElapsed = e.target.currentCount / 60;
 			log('still '+(_minutes - _minutesElapsed)+ ' minute before displaying ad',Shared.LOG_LEVEL_VERBOSE);
 		}
 
+		/**
+		 * Called when the frequency timer reaches its end (which is every 'frequency')
+		 * @param  e the event
+		 */
 		protected function onFrequencyTime(e:TimerEvent):void{
 			log('showing ad',Shared.LOG_LEVEL_LOG);
 			_minutesElapsed = 0;
@@ -143,6 +170,10 @@ package Zom.Modules{
 			}
 		}
 
+		/**
+		 * Called when the display timer reaches its end (which is every 'displayFor')
+		 * @param  e the event
+		 */
 		protected function onDisplayTime(e:TimerEvent):void{
 			log('hiding ad');
 			this._texts.nextFrame();
@@ -151,38 +182,64 @@ package Zom.Modules{
 			this.frequencyTimer.start();
 		}
 
+		/**
+		 * Called when the mouse hovers the logo or it's overlay
+		 * @param  e the event
+		 */
 		override protected function onMouseOver(e:MouseEvent):void{
 			super.onMouseOver(e);
 			displayTimer.reset();
 			frequencyTimer.stop();
 		}
 
+		/**
+		 * Called when the mouse hovers out of the logo or an overlay
+		 * @param  e the event
+		 */
 		override protected function onMouseOut(e:MouseEvent):void{
 			super.onMouseOut(e);
 			frequencyTimer.start();
 		}
 
+		/**
+		 * Called when media begins playing
+		 * @param  e the event
+		 */
 		override protected function onMediaPlay(e:MediaEvent):void{
 			log('media plays');
 			frequencyTimer.start();
 		}
 
+		/**
+		 * Called when media stops playing
+		 * @param  e the event
+		 */
 		override protected function onMediaStop(e:MediaEvent):void{
 			log('media stops');
 			hideAssets();
 			frequencyTimer.stop();
 		}
 
-		public function showAssets($speed:int=0.3):void{
+		/**
+		 * shows the text and the background
+		 * @param  $speed the speed of showing, defaults to .3 seconds
+		 * @param  $delay the delay between showing the background and the texts (the texts are shown last)
+		 */
+		public function showAssets($speed:int=0.3, $delay:int=0.2):void{
 			if(_texts){
-				show($speed,0.2,_texts);
+				show($speed,$delay,_texts);
 				if(_background){show($speed,0,_background);}
 			}
 		}
 
-		public function hideAssets($speed:int=0.3):void{
+		/**
+		 * Hides the text and the background
+		 * @param  $speed the speed of hiding, defaults to .3 seconds
+		 * @param  $delay the delay between hiding the background and the texts (the texts are hidden first)
+		 */
+		public function hideAssets($speed:int=0.3, $delay:int=0):void{
 			if(_texts){
-				hide($speed,0,_texts);
+				hide($speed,$delay,_texts);
 				if(_background){hide($speed,0,_background);}
 			}
 		}

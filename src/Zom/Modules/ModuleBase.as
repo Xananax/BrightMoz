@@ -6,6 +6,13 @@ package Zom.Modules{
 	import Zom.Events.ZomEvent;
 	import Zom.Main.Shared;
 
+	import com.brightcove.api.APIModules;
+	import com.brightcove.api.CustomModule;
+	import com.brightcove.api.modules.ContentModule;
+	import com.brightcove.api.modules.ExperienceModule;
+	import com.brightcove.api.modules.VideoPlayerModule;
+	import com.brightcove.api.modules.AdvertisingModule;
+
 	import flash.display.Stage;
 	import flash.display.DisplayObject;
 	import flash.display.DisplayObjectContainer;
@@ -53,6 +60,36 @@ package Zom.Modules{
 
 		protected var _base:Base;
 
+		/**
+		 * Logs a string
+		 * @param  str   String the message
+		 * @param  level one of the Shared.LOG_LEVEL_...
+		 */
+		override protected function log(str:String,level:int=0):void{
+			Shared.getLogger(this.uniqueId)(str,level);
+			if(this.experienceModule){
+				this.experienceModule.debug(this.uniqueId + ':' + str);
+			}
+		}
+
+		/**
+		 * Logs an error and returns an Error object
+		 * @param  $err String the message
+		 * @return      Error
+		 */
+		override protected function logError($err:String):Error{
+			if(this.experienceModule){
+				this.experienceModule.debug(this.uniqueId + ' [ERROR] :' + $err);
+			}		
+			return Shared.error(this.uniqueId,$err);
+		}
+
+		/**
+		 * Constructor
+		 * Creates a new moz module to be hosted under the moz object
+		 * @param $name         the name of the module. Used mainly in logs.
+		 * @param $parentModule the parent module. Expected to be the moz object
+		 */
 		public function ModuleBase($name:String='',$parentModule:Base=null){
 			this.mouseChildren = true;
 			this._base = $parentModule;
@@ -89,6 +126,35 @@ package Zom.Modules{
 		override public function get isSeeking():Boolean{
 			return this._base.isSeeking;
 		}
-	
+
+		override public function get isSafeToDisplayOverlay():Boolean{
+			return this._base.isSafeToDisplayOverlay;
+		}
+
+		override public function get videoModule():VideoPlayerModule{
+			if(!this._base._videoModule){return null;}
+			return this._base._videoModule;
+		}
+
+		override public function get experienceModule():ExperienceModule{
+			if(!this._base._experienceModule){return null;}
+			return this._base._experienceModule
+		}
+
+		override public function get videoStage():Stage{
+			if(!this._base._experienceModule){return null;}
+			return this._base._videoStage;
+		}
+
+		override public function get contentModule():ContentModule{
+			if(!this._base._contentModule){return null;}
+			return this._base._contentModule;
+		}
+
+		override public function get adModule():AdvertisingModule{
+			if(!this._base._adModule){return null;}
+			return this._base._adModule;
+		}
+
 	}
 }

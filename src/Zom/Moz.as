@@ -42,27 +42,36 @@ package Zom{
 
 	public class Moz extends Base{
 
+		/**
+		 * Constructor
+		 * @param $name         the name. Defaults to 'Moz', and is not supposed to change
+		 * @param $parentModule supposed to stay null.
+		 */
 		public function Moz($name:String='Moz',$parentModule:DisplayObjectContainer=null):void{
 			this.mouseChildren = true;
-			this._modulesToSet = {
-				'Logo':'Logo'
-			}
 			super($name,$parentModule);
 		}
 
+		/**
+		 * Called when brightcove player initializes
+		 * sets the brightcove modules and adds itself to stage.
+		 */
 		override protected function initialize():void{
 			super.initialize();
-			this.videoModule;
-			this.experienceModule;
-			this.contentModule;
-			this.adModule;
-			this.videoStage.addChild(this);
+			super.setBrightcoveModules(true);
 		}
 
+		/**
+		 * called when the module is added to stage.
+		 * Sets the moz modules, and begins loading.
+		 */
 		override public function onAddedToStage():void{
-			this.module('Logo',Logo);
-			super.onAddedToStage();
+			setModules({
+				'logo':'Logo'
+			});
+			loadParams();
 			beginLoading();
+			_checkIfReady('stage');
 		}
 
 	}
