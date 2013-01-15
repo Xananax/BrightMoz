@@ -229,7 +229,9 @@ package Zom.Plugin{
 		}
 
 		/**
-		 * parses parameters after loading. If there are loaders to set, here is the right place
+		 * parses parameters after loading. If there are loaders to set, here is the right place.
+		 * If _autoLoadAssetsDefinedInParams is set to true, will automatically create loaders for every setting ending in "url"
+		 * (provided that the setting is not 'click_url' or 'track_url')
 		 */
 		protected function parseParams():void{
 			for(var n:String in _params){

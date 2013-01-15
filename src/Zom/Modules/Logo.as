@@ -62,8 +62,8 @@ package Zom.Modules{
 				,	texts_url:null
 				,	track_url:''
 				,	click_url:null
-				,	x:'top'
-				,	y:'left'
+				,	x:'left'
+				,	y:'right'
 			}
 			super($name,$parentModule);
 			this.addToParent();
