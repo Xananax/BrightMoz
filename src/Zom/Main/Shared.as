@@ -214,13 +214,26 @@ package Zom.Main{
 
 		/**
 		 * Utility function to overwrite dynamic properties of an object with another
+		 * Works recursively for objects, but overwrites everything else, unless extendArrays is set to true
 		 * @param  obj1 Object the object to write over
 		 * @param  obj2 Object the object to write from
+		 * @param  extendArrays Boolean if true, arrays will be concatenated instead of replaced
 		 * @return       Object returns obj1
 		 */
-		public static function extendObject(obj1:Object,obj2:Object):Object{
+		public static function extendObject(obj1:Object,obj2:Object, extendArrays:Boolean = false):Object{
+			if(getQualifiedClassName(obj2) != 'object'){return obj1;}
 			for(var n:String in obj2){
-				obj1[n] = obj2[n];
+				if(getQualifiedClassName(obj2[n]) == 'object'){
+					if(obj1.hasOwnProperty(n) && getQualifiedClassName(obj1[n]) == 'object'){
+						extendObject(obj1[n],obj2[n],extendArrays);
+					}
+				}
+				else if(extendArrays && obj1.hasOwnProperty(n) && obj2[n] is Array && obj1[n] is Array){
+					obj1[n] = obj1[n].concat(obj2[n]);
+				}
+				else{
+					obj1[n] = obj2[n];
+				}
 			}
 			return obj1;
 		}

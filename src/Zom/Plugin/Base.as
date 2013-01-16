@@ -51,6 +51,9 @@ package Zom.Plugin{
 		protected static var _version:String = '0.1.2';
 		protected var _uniqueId:String;
 		protected var _loader:LoaderMax;
+		protected var _configLoader:DataLoader;
+		protected var _configURL:String = '';
+		protected var _estimatedConfigURLBytes:int = 900;
 		public var _videoModule:VideoPlayerModule = null;
 		public var _experienceModule:ExperienceModule = null;
 		public var _contentModule:ContentModule = null;
@@ -69,6 +72,7 @@ package Zom.Plugin{
 			'brightcove':false
 		,	'load':false
 		,	'stage':false
+		,	'params':false
 		};
 		protected var _autoLoadAssetsDefinedInParams:Boolean = true;
 		protected var _autoSetClickUrlIfFound:Boolean = true;
@@ -231,20 +235,20 @@ package Zom.Plugin{
 		/**
 		 * parses parameters after loading. If there are loaders to set, here is the right place.
 		 * If _autoLoadAssetsDefinedInParams is set to true, will automatically create loaders for every setting ending in "url"
-		 * (provided that the setting is not 'click_url' or 'track_url')
+		 * (provided that the setting is not 'click_url' or 'track_url' or 'config_url')
 		 */
-		protected function parseParams():void{
-			for(var n:String in _params){
-				if(_autoLoadAssetsDefinedInParams && (n=='url' || n.indexOf('_url')>=0) && n!=='click_url' && n!=='track_url'){
-					this.load(_params[n],n.replace('_url',''));
+		protected function parseParams($params:Object):void{
+			for(var n:String in $params){
+				if(_autoLoadAssetsDefinedInParams && (n=='url' || n.indexOf('_url')>=0) && n!=='click_url' && n!=='track_url' && n!=='config_url'){
+					this.load($params[n],n.replace('_url',''));
 				}
 			}
 			if(_autoSetClickUrlIfFound && 'click_url' in _params){
-				this.setClickUrl(_params['click_url'],this);
+				this.setClickUrl($params['click_url'],this);
 			}
 			if(_autoSetTrackingUrlsIfFound && 'track_url' in _params){
 				_params['track_url'] = Shared.splitString(_params['track_url'],'||');
-				this.setTrackingUrls(_params['track_url']);
+				this.setTrackingUrls($params['track_url']);
 			}
 		}
 
@@ -258,31 +262,105 @@ package Zom.Plugin{
 				return;
 			}
 			Shared.loadParams(this.stage,_params,this.uniqueId);
-			this.parseParams();
-			for(n in _params){
-				str+=n+'="'+_params[n]+'";'
+			this._configURL = loadParam('config_url','');
+			if(_configURL){
+				log('config url '+_configURL+' found, loading this instead of flashvars');
+				loadConfig();
 			}
-			str+='] -- end params';
-			log(str,Shared.LOG_LEVEL_VERBOSE);
-			if(this.modules.length){
-				for(n in this.modules){
-					(this.modules[n] as Base).loadParams();
+			else{
+				this.parseParams(_params);
+				for(n in _params){
+					str+=n+'="'+_params[n]+'";'
 				}
+				str+='] -- end params';
+				log(str,Shared.LOG_LEVEL_VERBOSE);
+				if(this.modules.length){
+					for(n in this.modules){
+						(this.modules[n] as Base).loadParams();
+					}
+				}
+				_checkIfReady('params');
 			}
 		}
 
 		/**
-		 * Loads a single param. This is not used by loadParams, and makes no use of namespacing
+		 * Loads a single param from the _params object. This does NOT use the flashvars, unless the flashvars
+		 * have previously been loaded into the _params object.
 		 * @param  $param          String the param name
 		 * @param  $default:*=null * the default value in case the param does not exist; defaults to null;
 		 * @return                 * the param's value of the default value provided
 		 */
 		public function param($param:String=null,$default:*=null):*{
+			if(this._params[$param]){
+				return this._params[$param];
+			}
+			return $default
+		}
+
+		/**
+		 * Loads a single param from the flashvars. This is not used by loadParams, and makes no use of namespacing
+		 * @param  $param          String the param name
+		 * @param  $default:*=null * the default value in case the param does not exist; defaults to null;
+		 * @return                 * the param's value of the default value provided
+		 */
+		public function loadParam($param:String=null,$default:*=null):*{
 			if(!this.stage){
 				throw this.logError('stage is not set yet, access to params is not possible');
 				return;
 			}
 			return Shared.param(this.stage,$param,$default)
+		}
+
+		public function get params():Object{
+			return this._params;
+		}
+
+		public function set params($p:Object):void{
+			this._params = Shared.extendObject(this._params,$p);
+		}
+
+		/**
+		 * Loads Configuration from a url, replacing the flashvars
+		 */
+		public function loadConfig():void{
+			if(_configURL){
+				_configLoader = new DataLoader(_configURL, {
+					name:"config"
+				,	requireWithRoot:this.root
+				,	estimatedBytes:_estimatedConfigURLBytes
+				,	onComplete: onConfigLoaded
+				,	onError: onConfigError
+				});
+				log('loading config from external url '+_configURL,Shared.LOG_LEVEL_VERBOSE)
+				_configLoader.load();
+			}
+		}
+
+		/**
+		 * Called when the config has loaded
+		 */
+		protected function onConfigLoaded(evt:LoaderEvent):void{
+			var text:String = LoaderMax.getContent("config");
+			var config:Object = JSON.parse(text) as Object;
+			var n:String;
+			this.params = config;
+			this.parseParams(config);
+			if(this.modules.length){
+				for(n in this.modules){
+					if(this._params[n]){
+						(this.modules[n] as Base).params = this._params[n];
+					}
+				}
+			}
+			_checkIfReady('params');
+		}
+
+		/**
+		 * Called when the config has failed
+		 */ 
+		protected function onConfigError(evt:LoaderEvent):void{
+			log('error loading config')
+			_checkIfReady('params');
 		}
 
 		/**
@@ -326,7 +404,7 @@ package Zom.Plugin{
 			for(n in $modulesToSet){
 				c = Shared.classFromName($modulesToSet[n]);
 				if(!c is ModuleBase){ throw this.logError($modulesToSet[n] + 'is not a ModuleBase child class');return;}
-				isOn = param(n,'off').toLowerCase();
+				isOn = loadParam(n,'off').toLowerCase();
 				if(c && (isOn == 'true' || isOn == '1' || isOn == 'on' || isOn == 'yes')){
 					log('loading module '+n,Shared.LOG_LEVEL_LOG)
 					this.module(n,c);
