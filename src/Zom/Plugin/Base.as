@@ -92,7 +92,7 @@ package Zom.Plugin{
 			Shared.setSecurity();
 			Shared.onReadyInit(this);
 			if($name){this.uniqueId = $name;}
-			log($name + ' -- initiating',Shared.LOG_LEVEL_VERBOSE);
+			log('initiating ver ' + _version + ' compiled on ' + CONFIG::date,Shared.LOG_LEVEL_VERBOSE);
 			if($parentModule){this._parentModule = $parentModule;}
 		}
 
@@ -167,7 +167,7 @@ package Zom.Plugin{
 			}
 			this.placeChildren();
 			for(var n:String in this._modules){
-				this._modules.place();
+				this._modules[n].place();
 			}
 		}
 
@@ -485,7 +485,7 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onAssetsLoaded(evt:LoaderEvent=null):void{
-			dispatchEvent(evt);
+			if(evt){dispatchEvent(evt);}
 			_checkIfReady('load');
 		}
 
@@ -650,10 +650,11 @@ package Zom.Plugin{
 		 */
 		public function setBrightcoveModules($andAddToStage:Boolean = false):void{
 			if(!this._brightCoveInit){throw this.logError('cannot set brightcove modules before brightcove init;')}
-			this.videoModule;
-			this.experienceModule;
-			this.contentModule;
-			this.adModule;
+			setVideoModule();
+			setExperienceModule();
+			setContentModule();
+			setAdModule();
+			setVideoStage();
 			if($andAddToStage){
 				this.videoStage.addChild(this);
 			}

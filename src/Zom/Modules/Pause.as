@@ -36,13 +36,13 @@ package Zom.Modules{
 
 	import flash.utils.Timer;
 
-	class Pause extends ModuleBase{
+	public class Pause extends ModuleBase{
 
 		protected var _image:ContentDisplay;
 		protected var _delayTimer:Timer = new Timer(500,1);
 		protected var _adShown:Boolean = false;
 
-		public function ModuleBase($name:String='Pause',$parentModule:Base=null){
+		public function Pause($name:String='Pause',$parentModule:Base=null){
 			this._canvasSprite = new Sprite();
 			this._maskSprite = new Sprite();
 			this.addChild(this._canvasSprite);
@@ -121,7 +121,7 @@ package Zom.Modules{
 		 * @return
 		 */
 		override protected function onMediaBegin(evt:MediaEvent):void{
-			super.onMediaBegin();
+			super.onMediaBegin(evt);
 			hidePauseOverlay();
 		}
 
@@ -130,8 +130,8 @@ package Zom.Modules{
 		 * requests a hiding of the pause overlay
 		 * @param  e the event
 		 */
-		override protected function onMediaPlay(e:MediaEvent):void{
-			super.onMediaPlay();
+		override protected function onMediaPlay(evt:MediaEvent):void{
+			super.onMediaPlay(evt);
 			hidePauseOverlay();
 		}
 
@@ -140,8 +140,8 @@ package Zom.Modules{
 		 * requests a showing of the pause overlay
 		 * @param  e the event
 		 */
-		override protected function onMediaStop(e:MediaEvent):void{
-			super.onMediaStop();
+		override protected function onMediaStop(evt:MediaEvent):void{
+			super.onMediaStop(evt);
 			showPauseOverlay();
 		}
 

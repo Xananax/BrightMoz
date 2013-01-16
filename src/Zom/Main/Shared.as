@@ -70,6 +70,7 @@ package Zom.Main{
 		public static const LOG_LEVEL_IMPORTANT:int = 2;
 		public static const LOG_LEVEL_WARNING:int = 4;
 		public static const LOG_LEVEL_ERROR:int = 8;
+		private static const includeClasses:Array = [Logo, Pause];
 
 		/**
 		 * Returns the next available unique Id
@@ -108,7 +109,7 @@ package Zom.Main{
 		 * @return Function the log function
 		 */
 		public static function getLogger(n:String):Function{
-			if(!n in _loggers){_loggers[n] = new Logger(n);}
+			if(!_loggers.hasOwnProperty(n)){_loggers[n] = new Logger(n);}
 			return _loggers[n].log;
 		}
 
@@ -558,11 +559,14 @@ package Zom.Main{
 		 * @return           void
 		 */
 		public static function loadParams(stage:Stage, params:Object, $namespace:String=''):void{
-			var parameter:String;
+			var parameter:String, flashVarParameter:String;
 			if($namespace){$namespace+='_';}
 			for(parameter in params){
 				if(parameter.indexOf('_') == 0){continue;}
+				flashVarParameter = $namespace+parameter;
+				log('1 - loading parameter '+flashVarParameter)
 				params[parameter] = param(stage,$namespace+parameter,params[parameter]);
+				log('2 - parameter '+ flashVarParameter + 'set to '+params[parameter]);
 			}
 		}
 
@@ -614,7 +618,7 @@ package Zom.Main{
 			try{
 				return getDefinitionByName($str) as Class;
 			}catch(e:Error){
-				error('root','no class exists by the name '+$str);
+				error('root','no class exists by the name '+ $str + ': ' + e.message);
 			}
 			return null;
 		}

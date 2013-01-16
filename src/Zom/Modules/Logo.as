@@ -72,8 +72,8 @@ package Zom.Modules{
 		/**
 		 * parses parameters, sets the values for frequency and how long the overlay displays
 		 */
-		override protected function parseParams():void{
-			super.parseParams();
+		override protected function parseParams($params:Object):void{
+			super.parseParams($params);
 			_params['displayFor'] = int(_params['displayFor']);
 			_params['frequency'] = int(_params['frequency']);
 		}

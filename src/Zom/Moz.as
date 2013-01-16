@@ -42,6 +42,8 @@ package Zom{
 
 	public class Moz extends Base{
 
+		protected var _logo:Logo;
+
 		/**
 		 * Constructor
 		 * @param $name         the name. Defaults to 'Moz', and is not supposed to change
@@ -66,8 +68,9 @@ package Zom{
 		 * Sets the moz modules, and begins loading.
 		 */
 		override public function onAddedToStage():void{
+			log('added to stage, loading modules');
 			setModules({
-				'logo':'Logo'
+				'logo':'Zom.Modules.Logo'
 			});
 			loadParams();
 			beginLoading();
