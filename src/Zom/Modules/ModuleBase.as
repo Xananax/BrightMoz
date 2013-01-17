@@ -65,7 +65,7 @@ package Zom.Modules{
 		 * @param  str   String the message
 		 * @param  level one of the Shared.LOG_LEVEL_...
 		 */
-		override protected function log(str:String,level:int=0):void{
+		override public function log(str:String,level:int=0):void{
 			Shared.getLogger(this.uniqueId)(str,level);
 			if(this.experienceModule){
 				this.experienceModule.debug(this.uniqueId + ':' + str);
@@ -77,7 +77,7 @@ package Zom.Modules{
 		 * @param  $err String the message
 		 * @return      Error
 		 */
-		override protected function logError($err:String):Error{
+		override public function logError($err:String):Error{
 			if(this.experienceModule){
 				this.experienceModule.debug(this.uniqueId + ' [ERROR] :' + $err);
 			}		
@@ -105,6 +105,16 @@ package Zom.Modules{
 			this._base.addEventListener(AdEvent.AD_START, onAdBegin);
 			this._base.addEventListener(AdEvent.AD_COMPLETE, onAdComplete);
 			super($name,$parentModule as DisplayObjectContainer);
+			this._initSteps['brightcove'] = true;
+			start();
+		}
+
+		/**
+		 * Returns true if the movie is fullscreen
+		 * @return
+		 */
+		override public function get isFullScreen():Boolean{
+			return this._base.isFullScreen;
 		}
 
 		override public function get isPlaying():Boolean{

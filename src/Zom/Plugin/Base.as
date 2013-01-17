@@ -48,12 +48,9 @@ package Zom.Plugin{
 	public class Base extends CustomModule{
 
 		// Statics and variables
-		protected static var _version:String = '0.1.2';
+		protected static var _version:String = '0.1.3';
 		protected var _uniqueId:String;
 		protected var _loader:LoaderMax;
-		protected var _configLoader:DataLoader;
-		protected var _configURL:String = '';
-		protected var _estimatedConfigURLBytes:int = 900;
 		public var _videoModule:VideoPlayerModule = null;
 		public var _experienceModule:ExperienceModule = null;
 		public var _contentModule:ContentModule = null;
@@ -70,7 +67,7 @@ package Zom.Plugin{
 		protected var _params:Object = {};
 		protected var _initSteps:Object = {
 			'brightcove':false
-		,	'load':false
+		,	'load':true
 		,	'stage':false
 		,	'params':false
 		};
@@ -82,6 +79,7 @@ package Zom.Plugin{
 		protected var _parentModule:DisplayObjectContainer;
 		protected var _canvasSprite:Sprite;
 		protected var _maskSprite:Sprite;
+		protected var _dump:Object = {};
 
 		/**
 		 * Constructor
@@ -89,13 +87,15 @@ package Zom.Plugin{
 		 * @param $parentModule in moz, this is supposed to be null.
 		 */
 		public function Base($name:String='Base',$parentModule:DisplayObjectContainer=null){
-			Shared.setSecurity();
-			Shared.onReadyInit(this);
 			if($name){this.uniqueId = $name;}
 			log('initiating ver ' + _version + ' compiled on ' + CONFIG::date,Shared.LOG_LEVEL_VERBOSE);
 			if($parentModule){this._parentModule = $parentModule;}
+			super();
 		}
 
+		public function start():void{
+			Shared.onReadyInit(this);
+		}
 
 		/**
 		 * Returns the canvasSprite, where objects are added, and which is hidden or shown by hide() and show();
@@ -138,15 +138,24 @@ package Zom.Plugin{
 		 * @return           Boolean if ready or not
 		 */
 		protected function _checkIfReady($complete:String=''):Boolean{
+			var $allComplete:Boolean = true;
+			var $notCompleteString:Array = [];
 			if($complete){
-				log('task '+$complete+' ready',Shared.LOG_LEVEL_VERBOSE);
+				log(' -- task '+$complete+' ready',Shared.LOG_LEVEL_LOG);
 				this._initSteps[$complete] = true;
 			}
 			for(var n:String in this._initSteps){
-				if(!this._initSteps[n]){return false;}
+				if(!this._initSteps[n]){
+					$allComplete = false;
+					$notCompleteString.push(n);
+				}
 			}
-			ready();
-			return true;
+			if($allComplete){
+				ready();
+				return true;
+			}
+			log(' -- task'+($notCompleteString.length>1 ? 's ':' ')+$notCompleteString.join(',')+' not complete yet');
+			return false;
 		}
 
 		/**
@@ -187,6 +196,7 @@ package Zom.Plugin{
 		 *  - the module has been placed on stage
 		 */
 		protected function ready():void{
+			log(this._uniqueId+' READY!')
 			place();
 		}
 
@@ -213,7 +223,7 @@ package Zom.Plugin{
 		 * @param  str   String the message
 		 * @param  level one of the Shared.LOG_LEVEL_...
 		 */
-		protected function log(str:String,level:int=0):void{
+		public function log(str:String,level:int=0):void{
 			Shared.getLogger(this.uniqueId)(str,level);
 			if(this._experienceModule){
 				this._experienceModule.debug(this.uniqueId + ':' + str);
@@ -225,7 +235,7 @@ package Zom.Plugin{
 		 * @param  $err String the message
 		 * @return      Error
 		 */
-		protected function logError($err:String):Error{
+		public function logError($err:String):Error{
 			if(this._experienceModule){
 				this._experienceModule.debug(this.uniqueId + ' [ERROR] :' + $err);
 			}		
@@ -238,9 +248,12 @@ package Zom.Plugin{
 		 * (provided that the setting is not 'click_url' or 'track_url' or 'config_url')
 		 */
 		protected function parseParams($params:Object):void{
+			var loaderName:String;
 			for(var n:String in $params){
-				if(_autoLoadAssetsDefinedInParams && (n=='url' || n.indexOf('_url')>=0) && n!=='click_url' && n!=='track_url' && n!=='config_url'){
-					this.load($params[n],n.replace('_url',''));
+				if(_autoLoadAssetsDefinedInParams && (n=='url' || n.indexOf('_url')>=0) && (n!=='click_url' && n!=='track_url' && n!=='config_url' && $params[n] !== null && $params[n] !== '')){
+					//log('detected url to load ' + n + ': '+$params[n]);
+					loaderName = (n=='url')? this.uniqueId : n.replace('_url','');
+					this.load($params[n],loaderName);
 				}
 			}
 			if(_autoSetClickUrlIfFound && 'click_url' in _params){
@@ -261,26 +274,19 @@ package Zom.Plugin{
 				throw this.logError('params cannot load before stage is set');
 				return;
 			}
-			Shared.loadParams(this.stage,_params,this.uniqueId);
-			this._configURL = loadParam('config_url','');
-			if(_configURL){
-				log('config url '+_configURL+' found, loading this instead of flashvars');
-				loadConfig();
+			Shared.loadParams(this._params,this.uniqueId);
+			this.parseParams(_params);
+			for(n in _params){
+				str+=n+'="'+_params[n]+'";'
 			}
-			else{
-				this.parseParams(_params);
-				for(n in _params){
-					str+=n+'="'+_params[n]+'";'
+			str+='] -- end params';
+			log(str,Shared.LOG_LEVEL_VERBOSE);
+			if(this.modules.length){
+				for(n in this.modules){
+					(this.modules[n] as Base).loadParams();
 				}
-				str+='] -- end params';
-				log(str,Shared.LOG_LEVEL_VERBOSE);
-				if(this.modules.length){
-					for(n in this.modules){
-						(this.modules[n] as Base).loadParams();
-					}
-				}
-				_checkIfReady('params');
 			}
+			_checkIfReady('params');
 		}
 
 		/**
@@ -308,7 +314,7 @@ package Zom.Plugin{
 				throw this.logError('stage is not set yet, access to params is not possible');
 				return;
 			}
-			return Shared.param(this.stage,$param,$default)
+			return Shared.param($param,$default)
 		}
 
 		public function get params():Object{
@@ -316,51 +322,8 @@ package Zom.Plugin{
 		}
 
 		public function set params($p:Object):void{
+			log('setting params from parent object');
 			this._params = Shared.extendObject(this._params,$p);
-		}
-
-		/**
-		 * Loads Configuration from a url, replacing the flashvars
-		 */
-		public function loadConfig():void{
-			if(_configURL){
-				_configLoader = new DataLoader(_configURL, {
-					name:"config"
-				,	requireWithRoot:this.root
-				,	estimatedBytes:_estimatedConfigURLBytes
-				,	onComplete: onConfigLoaded
-				,	onError: onConfigError
-				});
-				log('loading config from external url '+_configURL,Shared.LOG_LEVEL_VERBOSE)
-				_configLoader.load();
-			}
-		}
-
-		/**
-		 * Called when the config has loaded
-		 */
-		protected function onConfigLoaded(evt:LoaderEvent):void{
-			var text:String = LoaderMax.getContent("config");
-			var config:Object = JSON.parse(text) as Object;
-			var n:String;
-			this.params = config;
-			this.parseParams(config);
-			if(this.modules.length){
-				for(n in this.modules){
-					if(this._params[n]){
-						(this.modules[n] as Base).params = this._params[n];
-					}
-				}
-			}
-			_checkIfReady('params');
-		}
-
-		/**
-		 * Called when the config has failed
-		 */ 
-		protected function onConfigError(evt:LoaderEvent):void{
-			log('error loading config')
-			_checkIfReady('params');
 		}
 
 		/**
@@ -475,7 +438,8 @@ package Zom.Plugin{
 		 * @return      LoaderMax a LoaderMax instance
 		 */
 		public function load($url:String,$name:String=''):LoaderCore{
-			$name = this.uniqueId+'_'+($name? 'loader_'+Shared.nextId() : $name);
+			$name = this.uniqueId+'_'+($name ? $name : 'loader_'+Shared.nextId());
+			this._initSteps['load'] = false;
 			return Shared.load($url,null,{name:$name},this.loader);
 		}
 
@@ -506,10 +470,12 @@ package Zom.Plugin{
 		 */
 		public function beginLoading():void{
 			if(Shared.queueLength()){
+				log('assets to load, launching loading');
 				Shared.onLoadComplete(this.onAssetsLoaded);
 				Shared.getQueue().load();
 			}
 			else{
+				log('no assets to load');
 				onAssetsLoaded();
 			}
 		}
@@ -534,7 +500,7 @@ package Zom.Plugin{
 		 * @param  delay             Number a delay time in seconds before showing the object
 		 * @return                   TweenLite a TweenLite Instance
 		 */
-		public function show(time:int=0.3, delay:Number=0, $obj:DisplayObject=null):TweenLite{
+		public function show(time:Number=0.3, delay:Number=0, $obj:DisplayObject=null):TweenLite{
 			if(!$obj){$obj=this.canvasSprite;}
 			return Shared.opacity($obj,1,time,false,{delay:delay});
 		}
@@ -581,7 +547,7 @@ package Zom.Plugin{
 		 * Loads the tracking urls
 		 */
 		public function track():void{
-			if(this._trackingUrls){this._trackingUrls.load(true);}
+			if(this._trackingUrls.numChildren){this._trackingUrls.load(true);}
 		}
 
 		/**
@@ -768,12 +734,11 @@ package Zom.Plugin{
 		}
 
 		/**
-		 * Called whrn media is playing
+		 * Called when media is playing
 		 * @param  evt the event
 		 * @return
 		 */
 		protected function onMediaPlay(evt:MediaEvent):void{
-			log('Media plays',Shared.LOG_LEVEL_VERBOSE);
 			_isPlaying = true;
 			_isSafeToDisplayOverlay = true;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_PLAY));
@@ -786,7 +751,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onMediaBegin(evt:MediaEvent):void{
-			log('Media begins',Shared.LOG_LEVEL_VERBOSE);
 			_isPlaying = true;
 			_isSafeToDisplayOverlay = true;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_PLAY));
@@ -799,7 +763,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onMediaStop(evt:MediaEvent):void{
-			log('Media stopped',Shared.LOG_LEVEL_VERBOSE);
 			_isPlaying = false;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_STOP));
 			this.dispatchEvent(evt);
@@ -811,7 +774,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onBufferBegin(evt:MediaEvent = null):void{
-			log('Buffering...',Shared.LOG_LEVEL_VERBOSE);
 			_isBuffering = true;
 			_isSafeToDisplayOverlay = false;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_STOP));
@@ -824,7 +786,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onBufferComplete(evt:MediaEvent = null):void{
-			log('Buffering complete, resuming state',Shared.LOG_LEVEL_VERBOSE);
 			_isBuffering = false;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_PLAY));
 			this.dispatchEvent(evt);
@@ -836,7 +797,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onSeekBegin(evt:MediaEvent = null):void{
-			log('Seek initiated',Shared.LOG_LEVEL_VERBOSE);
 			_isSeeking = true;
 			_isSafeToDisplayOverlay = false;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_STOP));
@@ -849,7 +809,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onSeekComplete(evt:MediaEvent = null):void{
-			log('Seek complete, resuming state',Shared.LOG_LEVEL_VERBOSE);
 			_isSeeking = false;
 			this.dispatchEvent(new ZomEvent(ZomEvent.MEDIA_PLAY));
 			this.dispatchEvent(evt);
@@ -861,7 +820,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onAdBegin(evt:AdEvent):void {
-			log('ad begins',Shared.LOG_LEVEL_VERBOSE)
 			_adPlaying = true;
 			_isSafeToDisplayOverlay = false;
 			this.dispatchEvent(evt);
@@ -873,7 +831,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onAdComplete(evt:AdEvent):void {
-			log('ad completed, resuming movie',Shared.LOG_LEVEL_VERBOSE)
 			_adPlaying = false;
 			this.dispatchEvent(evt);
 		}
@@ -884,7 +841,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onFullScreenToggle(evt:FullScreenEvent):void{
-			log('fullscreen event',Shared.LOG_LEVEL_VERBOSE)
 			if(evt.fullScreen){this.onFullScreen(evt);}
 			else{this.onNormalScreen(evt);}
 			this.dispatchEvent(evt);
@@ -917,7 +873,6 @@ package Zom.Plugin{
 		 * @return
 		 */
 		protected function onVideoResize(evt:Event=null):void{
-			log('video resize event',Shared.LOG_LEVEL_VERBOSE)
 			dispatchEvent(evt);
 			place();
 		}
@@ -948,6 +903,14 @@ package Zom.Plugin{
 			if(this._click_url){
 				openWindow(this._click_url);
 			}
+		}
+
+		/**
+		 * Returns true if the movie is fullscreen
+		 * @return
+		 */
+		public function get isFullScreen():Boolean{
+			return this._isFullScreen;
 		}
 
 		/**

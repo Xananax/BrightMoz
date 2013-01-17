@@ -41,20 +41,22 @@ package Zom.Modules{
 		protected var _image:ContentDisplay;
 		protected var _delayTimer:Timer = new Timer(500,1);
 		protected var _adShown:Boolean = false;
+		protected var _origLoaderWidth:int = 0;
+		protected var _origLoaderHeight:int = 0;
 
 		public function Pause($name:String='Pause',$parentModule:Base=null){
+			super($name,$parentModule);
+			this._params = {
+					url:null //url of the image asset
+				,	track_url:'' //url to load on view
+				,	click_url:null //url to open in a new window on click
+				,	x:'right' //placement on the x axis
+				,	y:'top' //placement on the y axis
+			}
 			this._canvasSprite = new Sprite();
 			this._maskSprite = new Sprite();
 			this.addChild(this._canvasSprite);
 			this.addChild(this._maskSprite);
-			this._params = {
-					image_url:null
-				,	track_url:''
-				,	click_url:null
-				,	x:'right'
-				,	y:'top'
-			}
-			super($name,$parentModule);
 			_delayTimer.addEventListener(TimerEvent.TIMER_COMPLETE,_delayTimerTime);
 			this.addToParent();
 		}
@@ -68,11 +70,38 @@ package Zom.Modules{
 		 *  this also sets and places the logo, the background, and the texts
 		 */
 		override protected function ready():void{
-			var $image:ContentDisplay = this.getLoaderContent('image');
+			var $image:ContentDisplay = this.getLoaderContent('pause');
 			if($image){
 				this._image = $image;
+				_origLoaderWidth = _image.width;
+				_origLoaderHeight = _image.height;
 				this.canvasSprite.addChild(this._image);
 				hide(0);
+			}
+			super.ready();
+		}
+
+		/**
+		 * places the object in it's container.
+		 */
+		override public function place():void{
+			if(_image){
+				var $stageWidth:Number = isFullScreen ? stage.stageWidth : videoModule.getDisplayWidth();
+				var $stageHeight:Number = isFullScreen ? stage.stageHeight : videoModule.getDisplayHeight();
+				var $maxHeight:Number = $stageHeight - 70;
+				var $maxWidth:Number = _origLoaderWidth;
+				_image.height = $maxHeight;
+				_image.width = _origLoaderWidth * ($maxHeight / _origLoaderHeight);
+				_image.x = videoModule.getX() + $stageWidth - _image.width;
+				/**
+				if(this._params.x && this._params.y){
+					Shared.place(_params,this,this.parent);
+				}
+				this.placeChildren();
+				for(var n:String in this._modules){
+					this._modules[n].place();
+				}
+				**/
 			}
 		}
 

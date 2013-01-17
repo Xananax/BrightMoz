@@ -52,6 +52,7 @@ package Zom.Main{
 	import flash.utils.getQualifiedClassName;
 	import flash.utils.getDefinitionByName;
 	import flash.net.navigateToURL;
+	import com.adobe.serialization.json.JSON;
 
 	public class Shared{
 
@@ -65,6 +66,10 @@ package Zom.Main{
 		protected static var _on_load_complete:Array = [];
 		protected static var _on_load_error:Array = [];
 		protected static var _bitmap:BitmapData;
+		protected static var _estimatedConfigURLBytes:int = 900;
+		protected static var _configLoader:DataLoader;
+		protected static var _configURL:String = '';
+		protected static var _configCallBack:Function;
 		public static const LOG_LEVEL_VERBOSE:int = 0;
 		public static const LOG_LEVEL_LOG:int = 1;
 		public static const LOG_LEVEL_IMPORTANT:int = 2;
@@ -222,10 +227,10 @@ package Zom.Main{
 		 * @return       Object returns obj1
 		 */
 		public static function extendObject(obj1:Object,obj2:Object, extendArrays:Boolean = false):Object{
-			if(getQualifiedClassName(obj2) != 'object'){return obj1;}
+			if(getQualifiedClassName(obj2) != 'Object'){return obj1;}
 			for(var n:String in obj2){
-				if(getQualifiedClassName(obj2[n]) == 'object'){
-					if(obj1.hasOwnProperty(n) && getQualifiedClassName(obj1[n]) == 'object'){
+				if(getQualifiedClassName(obj2[n]) == 'Object'){
+					if(obj1.hasOwnProperty(n) && getQualifiedClassName(obj1[n]) == 'Object'){
 						extendObject(obj1[n],obj2[n],extendArrays);
 					}
 				}
@@ -276,6 +281,7 @@ package Zom.Main{
 			};
 			if(!$queue){$queue = Shared.getQueue();}
 			if(additionalProperties){extendObject($props,additionalProperties);}
+			log('creating loader "' + $props.name + '" for url: ' + url);
 			var $loader:LoaderCore = LoaderMax.parse(url,$props);
 			$queue.append($loader);
 			return $loader;
@@ -395,7 +401,7 @@ package Zom.Main{
 		 * @param  delay             Number a delay time in seconds before showing the object
 		 * @return                   TweenLite a TweenLite Instance
 		 */
-		public static function show(obj:DisplayObject,time:int=0.3,delay:Number=0):TweenLite{
+		public static function show(obj:DisplayObject,time:Number=0.3,delay:Number=0):TweenLite{
 			return opacity(obj,1,time,false,{delay:delay});
 		}
 
@@ -470,9 +476,11 @@ package Zom.Main{
 			}
 			if($x!==null){
 				obj.x = parseDimension($x,obj.width,container.width);
+				log('placing at x:'+obj.x+' from $x:'+$x)
 			}
 			if($y!==null){
 				obj.y = parseDimension($y,obj.height,container.height);
+				log('placing at y:'+obj.y+' from $y:'+$y);
 			}
 		}
 
@@ -542,13 +550,53 @@ package Zom.Main{
 		 * @param  def:*=null * Default value of the parameter
 		 * @return            returns the param, if found, or the default value
 		 */
-		public static function param(stage:Stage, param:String=null,def:*=null):*{
+		public static function param(param:String=null,def:*=null):*{
+			if(param==null){return _params;}
+			if(_params.hasOwnProperty(param)){return _params[param];}
+			if(_params.hasOwnProperty(param.toLowerCase())){return _params[param.toLowerCase()];}
+			return def;
+		}
+
+		public static function loadAllParameters(stage:Stage,callback:Function):void{
 			if(!_params){
 				_params = LoaderInfo(stage.loaderInfo).parameters;
+				_configURL = _params.hasOwnProperty('config_url') ? _params['config_url'] : '';
+				if(_configURL){
+					_configCallBack = callback;
+					log('config url '+_configURL+' found, loading this instead of flashvars');
+					_configLoader = new DataLoader(_configURL, {
+						name:"config"
+					,	estimatedBytes:_estimatedConfigURLBytes
+					,	onComplete: onConfigLoaded
+					,	onError: onConfigError
+					});
+					log('loading config from external url '+_configURL,Shared.LOG_LEVEL_VERBOSE)
+					_configLoader.load();
+					return;
+				}
 			}
-			if(param==null){return _params;}
-			if(_params[param]){return _params[param];}
-			return def;
+			callback();
+		}
+
+		/**
+		 * Called when the config has loaded
+		 */
+		protected static function onConfigLoaded(evt:LoaderEvent):void{
+			var text:String = LoaderMax.getContent("config");
+			var config:Object = com.adobe.serialization.json.JSON.decode(text) as Object;
+			log('loaded the following json: ----');
+			log(text);
+			log('--- json end');
+			_params = config;
+			_configCallBack();
+		}
+
+		/**
+		 * Called when the config has failed
+		 */ 
+		protected static function onConfigError(evt:LoaderEvent):void{
+			log('error loading config')
+			_configCallBack();
 		}
 
 		/**
@@ -558,15 +606,13 @@ package Zom.Main{
 		 * @param  namespace String an optional namespace. Don't include the trailing "_", as it will be added
 		 * @return           void
 		 */
-		public static function loadParams(stage:Stage, params:Object, $namespace:String=''):void{
+		public static function loadParams($params:Object, $namespace:String=''):void{
 			var parameter:String, flashVarParameter:String;
 			if($namespace){$namespace+='_';}
-			for(parameter in params){
+			for(parameter in $params){
 				if(parameter.indexOf('_') == 0){continue;}
 				flashVarParameter = $namespace+parameter;
-				log('1 - loading parameter '+flashVarParameter)
-				params[parameter] = param(stage,$namespace+parameter,params[parameter]);
-				log('2 - parameter '+ flashVarParameter + 'set to '+params[parameter]);
+				$params[parameter] = param($namespace+parameter,$params[parameter]);
 			}
 		}
 
@@ -576,7 +622,7 @@ package Zom.Main{
 		 * @param  func:* String|Function a function or the name of a function (in which case it will be assumed to be public and found in Obj)
 		 * @return        void
 		 */
-		public static function onReadyInit(obj:EventDispatcher,func:*='onAddedToStage'):void{
+		public static function onReadyInit(obj:DisplayObject,func:*='onAddedToStage'):void{
 			var $func:Function = (func is Function)?
 				$func = func
 				:(func is String && obj[func] && obj[func] is Function)?
@@ -589,7 +635,7 @@ package Zom.Main{
 			}
 			var $onAddedToStage:Function = function(e:Event):void{
 				obj.removeEventListener(Event.ADDED_TO_STAGE,$onAddedToStage)
-				$func();
+				loadAllParameters(obj.stage,$func);
 			}
 			obj.addEventListener(Event.ADDED_TO_STAGE,$onAddedToStage);
 		}

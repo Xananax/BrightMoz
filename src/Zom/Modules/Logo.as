@@ -25,10 +25,12 @@ package Zom.Modules{
 	import flash.events.MouseEvent;
 	import com.brightcove.api.events.MediaEvent;
 	import com.brightcove.api.events.AdEvent;
+	import Zom.Widgets.Pie;
 
 	import fl.transitions.Tween;
 	import fl.transitions.easing.*;
 	import fl.transitions.TweenEvent;
+	import com.greensock.*;
 
 	import flash.system.SecurityDomain;
 	import flash.system.LoaderContext;
@@ -43,29 +45,41 @@ package Zom.Modules{
 		protected var _logo:ContentDisplay;
 		protected var _displayTimer:Timer;
 		protected var _frequencyTimer:Timer;
-		protected var _minutes:int = 0;
-		protected var _minutesElapsed:int = 0;
+		protected var _showTextTween:TweenLite;
+		protected var _showBackgroundTween:TweenLite;
+		protected var _hideTextTween:TweenLite;
+		protected var _hideBackgroundTween:TweenLite;
+		protected var _frequencyPie:Pie = new Pie(10);
+		protected var _displayPie:Pie = new Pie(5);
+		protected var _frequencyElapsed:int = 0;
+		protected var _frequencyTotal:int = 0;
+		protected var _displayElapsed:int = 0;
+		protected var _displayTotal:int = 0;
+		private var _timersTick:int = 100;
 
 		public function Logo($name:String='Logo',$parentModule:Base=null){
+			super($name,$parentModule);
+			this._params = {
+					frequency:'10' //how ofen the overlay displays
+				,	displayFor: '5' //how long to display the overlay
+				,	width: 100 //unused
+				,	height: 50 //unused
+				,	loop:true //if the overlay text loops back to the first frame after reaching the end
+				,	url: null //the logo asset url
+				,	background_url:null //the text background asset url
+				,	texts_url:null //the text url
+				,	track_url:'' //url to track on a view
+				,	click_url:null //url to open on a new window on click
+				,	x:'left' //placement on x axis
+				,	y:'top' //placement on y axis
+				,	fadeIn:'0.5' //speed of fade in
+				,	fadeInDelta:'0.2' //difference between background fade in and text fade in
+			}
 			this._canvasSprite = new Sprite();
 			this._maskSprite = new Sprite();
 			this.addChild(this._canvasSprite);
 			this.addChild(this._maskSprite);
-			this._params = {
-					frequency:'5000'
-				,	displayFor: '2000'
-				,	width: 100
-				,	height: 50
-				,	loop:true
-				,	logo_url: null
-				,	background_url:null
-				,	texts_url:null
-				,	track_url:''
-				,	click_url:null
-				,	x:'left'
-				,	y:'right'
-			}
-			super($name,$parentModule);
+			start();
 			this.addToParent();
 		}
 
@@ -74,8 +88,11 @@ package Zom.Modules{
 		 */
 		override protected function parseParams($params:Object):void{
 			super.parseParams($params);
-			_params['displayFor'] = int(_params['displayFor']);
-			_params['frequency'] = int(_params['frequency']);
+			_params['displayFor'] = int(_params['displayFor']) * 1000;
+			_params['frequency'] = int(_params['frequency']) * 1000;
+			_params['fadeIn'] = Number(_params['fadeIn']);
+			_params['fadeInDelta'] = Number(_params['fadeInDelta']);
+			log('ad will display for '+_params['displayFor'] + 'ms every ' + _params['frequency'] + 'ms; it will fade in '+_params['fadeIn']+ 's, text will be delayed for '+ _params['fadeInDelta']+ 's');
 		}
 
 		/**
@@ -87,28 +104,80 @@ package Zom.Modules{
 		 *  this also sets and places the logo, the background, and the texts
 		 */
 		override protected function ready():void{
+			super.ready();
 			var $logoLoader:ContentDisplay = this.getLoaderContent('logo');
 			var $backgroundLoader:ContentDisplay = this.getLoaderContent('background');
-			var $textsLoader:ContentDisplay = this.getLoaderContent('text');
+			var $textsLoader:ContentDisplay = this.getLoaderContent('texts');
 
 			if($logoLoader){
+				log('logo loaded');
 				this._logo = $logoLoader;
 				this.canvasSprite.addChild(this._logo);
-			}
-			if($backgroundLoader){
-				this._background = $backgroundLoader;
-				this.canvasSprite.addChild(this._background);
-				_background.x = _logo.x + _logo.width;
-			}
-			if($textsLoader){
-				this._texts = $textsLoader.rawContent as MovieClip;
-				this.canvasSprite.addChild(this._texts);
-				_texts.x = _logo.x + _logo.width;
-			}
-			hideAssets(0);
-			show();
+				if($textsLoader){
+					log('texts loaded');
+					this._texts = $textsLoader.rawContent as MovieClip;
+					this._texts.x = _logo.x + _logo.width;
+					this._texts.alpha = 0;
+					this._texts.visible = false;
+					if($backgroundLoader){
+						log('background loaded');
+						this._background = $backgroundLoader;
+						this.canvasSprite.addChild(this._background);
+						this._background.x = _logo.x + _logo.width;
+						this._background.alpha = 0;
+						this._background.visible = false;
+					}else{log('no background');}
+					this.canvasSprite.addChild(this._texts);
+				}else{log('no texts');}
+			}else{log('no logo');}
 			setHover(this);
+			if(_texts){
+				createPies();
+				createTimers();
+				startFrequencyTimer();
+			}
+			show();
 			track();
+		}
+
+
+		protected function createPies():void{
+			if(CONFIG::debug){
+				if(_texts){
+					this._frequencyPie.x = 15;
+					this._displayPie.x = 25;
+					this._frequencyPie.y = 15;
+					this._displayPie.y = 20;
+					this._displayPie.alpha = this._frequencyPie.alpha = .5;
+					this.addChild(this._frequencyPie);
+					this.addChild(this._displayPie);
+				}
+			}
+		}
+
+		protected function createTimers():void{
+			createFrequencyTimer();
+			createDisplayTimer();
+		}
+
+		protected function createFrequencyTimer():void{
+			log('creating frequency timer');
+			var $freq:int = _params['frequency'];
+			_frequencyTotal = Math.round($freq/_timersTick);
+			this._frequencyTimer = new Timer(_timersTick,_frequencyTotal);
+			this._frequencyTimer.addEventListener(TimerEvent.TIMER,onFrequencyTick);
+			this._frequencyTimer.addEventListener(TimerEvent.TIMER_COMPLETE,onFrequencyTime);
+			log('ad will display every '+$freq+'ms');
+		}
+
+		protected function createDisplayTimer():void{
+			log('creating display timer');
+			var $time:int = _params['displayFor'];
+			_displayTotal = Math.round($time/_timersTick);
+			this._displayTimer = new Timer(_timersTick,_displayTotal);
+			this._displayTimer.addEventListener(TimerEvent.TIMER,onDisplayTick);
+			this._displayTimer.addEventListener(TimerEvent.TIMER_COMPLETE,onDisplayTime);
+			log('ad will display for '+$time+ 'ms')
 		}
 
 		/**
@@ -116,10 +185,7 @@ package Zom.Modules{
 		 * @return the timer
 		 */
 		public function get displayTimer():Timer{
-			if(!this._displayTimer){
-				this._displayTimer = new Timer(_params['displayFor'],1);
-				this._displayTimer.addEventListener(TimerEvent.TIMER,onDisplayTime);
-			}
+			if(this._displayTimer == null){createTimers();}
 			return this._displayTimer;
 		}
 
@@ -128,19 +194,7 @@ package Zom.Modules{
 		 * @return the timer
 		 */
 		public function get frequencyTimer():Timer{
-			if(!this._frequencyTimer){
-				var $freq:int = _params['frequency'];
-				if($freq>1000){
-					_minutes = Math.round($freq/1000/60);
-					this._frequencyTimer = new Timer(1000,_minutes*60);
-					this._frequencyTimer.addEventListener(TimerEvent.TIMER,onFrequencyTick);
-					log('ad will display every '+_minutes+' minutes');
-				}else{
-					this._frequencyTimer = new Timer($freq);
-					log('ad will display every '+($freq/1000)+' seconds');
-				}
-				this._frequencyTimer.addEventListener(TimerEvent.TIMER_COMPLETE,onFrequencyTime);
-			}
+			if(this._frequencyTimer == null){createTimers();}
 			return this._frequencyTimer;
 		}
 
@@ -149,8 +203,8 @@ package Zom.Modules{
 		 * @param  e the event
 		 */
 		protected function onFrequencyTick(e:TimerEvent):void{
-			_minutesElapsed = e.target.currentCount / 60;
-			log('still '+(_minutes - _minutesElapsed)+ ' minute before displaying ad',Shared.LOG_LEVEL_VERBOSE);
+			_frequencyElapsed++;
+			_frequencyPie.draw(_frequencyElapsed/_frequencyTotal);
 		}
 
 		/**
@@ -158,16 +212,22 @@ package Zom.Modules{
 		 * @param  e the event
 		 */
 		protected function onFrequencyTime(e:TimerEvent):void{
-			log('showing ad',Shared.LOG_LEVEL_LOG);
-			_minutesElapsed = 0;
+			log('time to show the ad');
+			_frequencyElapsed = 0;
+			_frequencyPie.draw(0);
 			if(!adPlaying && !isSeeking && !isBuffering && isPlaying){
+				log('showing ad',Shared.LOG_LEVEL_LOG);
 				showAssets();
-				displayTimer.reset();
-				displayTimer.start();
+				startDisplayTimer(true);
 				track();
 			}else{
-				frequencyTimer.start();
+				startFrequencyTimer(true);
 			}
+		}
+
+		protected function onDisplayTick(e:TimerEvent):void{
+			_displayElapsed++;
+			_displayPie.draw(_displayElapsed/_displayTotal);
 		}
 
 		/**
@@ -176,48 +236,164 @@ package Zom.Modules{
 		 */
 		protected function onDisplayTime(e:TimerEvent):void{
 			log('hiding ad');
-			this._texts.nextFrame();
-			hideAssets();
-			this.frequencyTimer.reset();
-			this.frequencyTimer.start();
+			_displayElapsed = 0;
+			_displayPie.draw(0);
+			if(_texts){
+				if((this._texts.currentFrame == this._texts.totalFrames) && _params['loop']){
+					this._texts.gotoAndStop(1);
+					startFrequencyTimer(true);
+				}else{
+					this._texts.nextFrame();
+					startFrequencyTimer(true);
+				}
+				hideAssets();
+			}
+		}
+
+		protected function startFrequencyTimer($andReset:Boolean = false):void{
+			if(_texts){
+				if($andReset){resetFrequencyTimer();}
+				log('starting frequency timer');
+				frequencyTimer.start();
+			}
+		}
+
+		protected function stopFrequencyTimer($andReset:Boolean = false):void{
+			if(_texts){
+				log('stopping frequency timer')
+				if($andReset){resetFrequencyTimer();}
+				frequencyTimer.stop();
+			}
+		}
+
+		protected function resetFrequencyTimer():void{
+			log('resetting frequency timer');
+			frequencyTimer.reset();
+			_frequencyElapsed = 0;
+			_frequencyPie.draw(0);		
+		}
+
+		protected function startDisplayTimer($andReset:Boolean = false):void{
+			if(_texts){
+				if($andReset){resetDisplayTimer();}
+				log('starting display timer');
+				displayTimer.start();
+			}		
+		}
+
+		protected function stopDisplayTimer($andReset:Boolean = false):void{
+			if(_texts){
+				log('stopping frequency timer')
+				if($andReset){resetDisplayTimer();}
+				displayTimer.stop();
+			}
+		}
+
+		protected function resetDisplayTimer():void{
+			log('resetting display timer');
+			displayTimer.reset();
+			_displayElapsed = 0;
+			_displayPie.draw(0);		
 		}
 
 		/**
 		 * Called when the mouse hovers the logo or it's overlay
 		 * @param  e the event
 		 */
-		override protected function onMouseOver(e:MouseEvent):void{
-			super.onMouseOver(e);
-			displayTimer.reset();
-			frequencyTimer.stop();
+		override protected function onMouseOver(evt:MouseEvent):void{
+			super.onMouseOver(evt);
+			stopFrequencyTimer(true);
 		}
 
 		/**
 		 * Called when the mouse hovers out of the logo or an overlay
 		 * @param  e the event
 		 */
-		override protected function onMouseOut(e:MouseEvent):void{
-			super.onMouseOut(e);
-			frequencyTimer.start();
+		override protected function onMouseOut(evt:MouseEvent):void{
+			super.onMouseOut(evt);
+			startFrequencyTimer();
 		}
 
 		/**
 		 * Called when media begins playing
 		 * @param  e the event
 		 */
-		override protected function onMediaPlay(e:MediaEvent):void{
-			log('media plays');
-			frequencyTimer.start();
+		override protected function onMediaBegin(evt:MediaEvent):void{
+			startFrequencyTimer();
+			super.onMediaBegin(evt);
+		}
+
+		/**
+		 * Called when the buffer completes and playing resumes.
+		 * @param  evt the event
+		 * @return
+		 */
+		override protected function onBufferComplete(evt:MediaEvent = null):void{
+			startFrequencyTimer();
+			super.onBufferBegin(evt);	
+		}
+
+		/**
+		 * Called when an ad has finished playing
+		 * @param  evt the event
+		 * @return
+		 */
+		override protected function onAdComplete(evt:AdEvent):void {
+			//startFrequencyTimer
+			super.onAdComplete(evt);
+		}
+
+		/**
+		 * Called when media begins playing
+		 * @param  e the event
+		 */
+		override protected function onMediaPlay(evt:MediaEvent):void{
+			startFrequencyTimer();
+			super.onMediaPlay(evt);
+		}
+
+		/**
+		 * Called when the player begins buffering
+		 * @param  evt the event
+		 * @return
+		 */
+		override protected function onBufferBegin(evt:MediaEvent = null):void{
+			onStoppingEvent();
+			super.onBufferBegin(evt)
+		}
+
+		/**
+		 * Called when the player initiates a seek
+		 * @param  evt the event
+		 * @return
+		 */
+		override protected function onSeekBegin(evt:MediaEvent = null):void{
+			onStoppingEvent();
+			super.onSeekBegin(evt);
+		}
+
+		/**
+		 * Called when an ad begins playing
+		 * @param  evt the event
+		 * @return
+		 */
+		override protected function onAdBegin(evt:AdEvent):void {
+			onStoppingEvent();
+			super.onAdBegin(evt);
 		}
 
 		/**
 		 * Called when media stops playing
 		 * @param  e the event
 		 */
-		override protected function onMediaStop(e:MediaEvent):void{
-			log('media stops');
+		override protected function onMediaStop(evt:MediaEvent):void{
+			onStoppingEvent();
+			super.onMediaStop(evt);
+		}
+
+		protected function onStoppingEvent():void{
 			hideAssets();
-			frequencyTimer.stop();
+			stopFrequencyTimer();			
 		}
 
 		/**
@@ -225,10 +401,14 @@ package Zom.Modules{
 		 * @param  $speed the speed of showing, defaults to .3 seconds
 		 * @param  $delay the delay between showing the background and the texts (the texts are shown last)
 		 */
-		public function showAssets($speed:int=0.3, $delay:int=0.2):void{
+		public function showAssets($speed:Number=-1, $delay:Number=-1):void{
 			if(_texts){
+				if($speed<0){$speed = _params['fadeIn'];}
+				if($delay<0){$delay = _params['fadeInDelta'];}
 				show($speed,$delay,_texts);
-				if(_background){show($speed,0,_background);}
+				if(_background){
+					show($speed,0,_background);
+				}
 			}
 		}
 
@@ -237,10 +417,14 @@ package Zom.Modules{
 		 * @param  $speed the speed of hiding, defaults to .3 seconds
 		 * @param  $delay the delay between hiding the background and the texts (the texts are hidden first)
 		 */
-		public function hideAssets($speed:int=0.3, $delay:int=0):void{
+		public function hideAssets($speed:Number=-1, $delay:Number=-1):void{
 			if(_texts){
-				hide($speed,$delay,_texts);
-				if(_background){hide($speed,0,_background);}
+				if($speed<0){$speed = _params['fadeIn'];}
+				if($delay<0){$delay = _params['fadeInDelta'];}
+				hide($speed,0,_texts);
+				if(_background){
+					hide($speed,$delay,_background);
+				}
 			}
 		}
 
