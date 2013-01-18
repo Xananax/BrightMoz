@@ -10,8 +10,8 @@ package Zom{
 	import Zom.Plugin.Base;
 	import Zom.Modules.*;
 	import Zom.Events.*;
+	import Zom.Main.Logger;
 	import Zom.Main.Shared;
-	import org.osflash.thunderbolt.Logger;
 
 	import flash.display.Stage;
 	import flash.display.DisplayObject;
@@ -75,6 +75,7 @@ package Zom{
 		 * Sets the moz modules, and begins loading.
 		 */
 		override public function onAddedToStage():void{
+			Logger.setStage(this.stage);
 			log('added to stage, loading modules');
 			setModules({
 				'logo':'Zom.Modules.Logo'

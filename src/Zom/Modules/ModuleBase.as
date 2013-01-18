@@ -61,30 +61,6 @@ package Zom.Modules{
 		protected var _base:Base;
 
 		/**
-		 * Logs a string
-		 * @param  str   String the message
-		 * @param  level one of the Shared.LOG_LEVEL_...
-		 */
-		override public function log(str:String,level:int=0):void{
-			Shared.getLogger(this.uniqueId)(str,level);
-			if(this.experienceModule){
-				this.experienceModule.debug(this.uniqueId + ':' + str);
-			}
-		}
-
-		/**
-		 * Logs an error and returns an Error object
-		 * @param  $err String the message
-		 * @return      Error
-		 */
-		override public function logError($err:String):Error{
-			if(this.experienceModule){
-				this.experienceModule.debug(this.uniqueId + ' [ERROR] :' + $err);
-			}		
-			return Shared.error(this.uniqueId,$err);
-		}
-
-		/**
 		 * Constructor
 		 * Creates a new moz module to be hosted under the moz object
 		 * @param $name         the name of the module. Used mainly in logs.

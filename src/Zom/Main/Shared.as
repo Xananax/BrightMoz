@@ -68,7 +68,7 @@ package Zom.Main{
 		protected static var _bitmap:BitmapData;
 		protected static var _estimatedConfigURLBytes:int = 900;
 		protected static var _configLoader:DataLoader;
-		protected static var _configURL:String = '';
+		protected static var _configURL:String = 'https://yelo.cinemoz.com/playerSettings.json';
 		protected static var _configCallBack:Function;
 		public static const LOG_LEVEL_VERBOSE:int = 0;
 		public static const LOG_LEVEL_LOG:int = 1;
@@ -560,7 +560,13 @@ package Zom.Main{
 		public static function loadAllParameters(stage:Stage,callback:Function):void{
 			if(!_params){
 				_params = LoaderInfo(stage.loaderInfo).parameters;
-				_configURL = _params.hasOwnProperty('config_url') ? _params['config_url'] : '';
+				for(var n:String in _params){
+					_params[n] = decodeURIComponent(_params[n]);
+				}
+				if(!_configURL){
+					trace('---------------- no config url ---------------------------')
+					_configURL = _params.hasOwnProperty('config_url') ? _params['config_url'] : '';
+				}
 				if(_configURL){
 					_configCallBack = callback;
 					log('config url '+_configURL+' found, loading this instead of flashvars');
