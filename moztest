@@ -1,0 +1,3 @@
+#!/bin/bash
+
+make debug && scp bin/moz_debug.swf jsarout@cinemoz0.cinemoz.com:/home/jsarout/yelo/plack/public/swf/

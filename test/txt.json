@@ -1,0 +1,14 @@
+{
+	"pause": "on",
+	"pause_url": "http://localhost/moz/18.png",
+	"pause_click_url": "http://www.google.com",
+	"logo": "on",
+	"logo_url": "http://localhost/moz/assets/icon.png",
+	"logo_background_url": "http://localhost/moz/assets/bg.png",
+	"logo_click_url": "http://www.google.com",
+	"logo_texts_url": "http://localhost/moz/assets/texts.swf",
+	"logo_frequency": "10",
+	"logo_displayFor": "5",
+	"logo_fadeIn": "0.5",
+	"logo_fadeInDelta": "0.2"
+}
