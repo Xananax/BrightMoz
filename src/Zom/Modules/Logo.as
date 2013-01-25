@@ -45,6 +45,7 @@ package Zom.Modules{
 		protected var _loadersNmb:int = 0;
 		protected var _minutes:int = 0;
 		protected var _minutesElapsed:int = 0;
+		protected var _currentTextFrame:int = 1;
 
 		public function Logo(parent:Moz,options:Object){
 			super(parent,options,'Logo');
@@ -136,7 +137,12 @@ package Zom.Modules{
 		protected function interval(e:TimerEvent):void{
 			log('showing ad');
 			_minutesElapsed = 0;
-			if(!_adPlaying() && !_isSeeking() && !_isBuffering() && _isPlaying()){
+			if(_texts && !_adPlaying() && !_isSeeking() && !_isBuffering() && _isPlaying()){
+				_text.gotoAndStop(_currentTextFrame);
+				_currentTextFrame++;
+				if(_currentTextFrame > _text.totalFrames){
+					_currentTextFrame = 1;
+				}
 				_show(_texts);
 				_show(_background);
 				_displayTimer.reset();
@@ -149,7 +155,7 @@ package Zom.Modules{
 
 		protected function display(e:TimerEvent):void{
 			log('hiding ad');
-			_texts.nextFrame();
+			//
 			_hide(_texts);
 			_hide(_background);
 			_intervalTimer.reset();
