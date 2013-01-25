@@ -6,6 +6,7 @@ package Zom.Plugin{
 	import com.brightcove.api.modules.ExperienceModule;
 	import com.brightcove.api.modules.VideoPlayerModule;
 	import com.brightcove.api.modules.AdvertisingModule;
+	import com.adobe.serialization.json.JSON;
 	
 	import Zom.Events.*;
 	import flash.events.ProgressEvent;
@@ -15,14 +16,17 @@ package Zom.Plugin{
 	import flash.events.Event;
 	import flash.events.FullScreenEvent;
 	import flash.events.IOErrorEvent;
+	import com.adobe.crypto.MD5;
 	import com.brightcove.api.events.MediaEvent;
 	import com.brightcove.api.events.AdEvent;
+	import com.brightcove.api.events.ExperienceEvent;
 
 	import flash.net.*;
 	import flash.display.Loader;
 	import flash.display.LoaderInfo;
 	import flash.system.LoaderContext;
 	import flash.net.URLRequest;
+	import flash.net.*;
 	import flash.display.Sprite;
 	import flash.display.Stage;
 
@@ -49,6 +53,9 @@ package Zom.Plugin{
 		protected var _isSeeking:Boolean = false;
 		protected var _isFullScreen:Boolean = false;
 		protected var _adPlaying:Boolean = false;
+		protected var _configLoader:URLLoader = new URLLoader();
+		protected var _mediaId:String;
+		protected var _configUrl:String = CONFIG::debug ? 'http://yelo.cinemoz.com/%%id%%/player' :'http://www.cinemoz.com/%%id%%/player';
 
 		public function log(...args):void{
 			CONFIG::debug{
@@ -78,27 +85,52 @@ package Zom.Plugin{
 			//ExternalInterface.marshallExceptions = true;
 			//registerJs('domReady');
 			this.mouseChildren = true;
-			addEventListener(Event.ADDED_TO_STAGE,_onAddedToStage);
+			addEventListener(Event.ADDED_TO_STAGE,_onAddedToStage);	
 		}
 
 		protected function _loadParams():void{
-			_jsNameSpace = String(_param('jsNameSpace','FlashCommunicator'));
-			log('javascript namespace set to '+_jsNameSpace)
-			if(_jsNameSpace){_jsNameSpace+='.';}
+			//_jsNameSpace = String(_param('jsNameSpace','FlashCommunicator'));
+			//log('javascript namespace set to '+_jsNameSpace)
+			//if(_jsNameSpace){_jsNameSpace+='.';}
+		}
+
+		protected function _loadConfig():void{
+			var request:URLRequest = new URLRequest(_configUrl.replace('%%id%%',MD5.hash(_mediaId)));
+			//request.method = URLRequestMethod.POST; 
+			//var variables : URLVariables = new URLVariables();  
+			//variables.referenceId = _mediaId;
+			//variables.id = _mediaId;
+			//variables.movieId = _mediaId;
+			//request.data = variables; 
+			_configLoader.addEventListener(Event.COMPLETE,_onConfigLoaded);
+			_configLoader.addEventListener(IOErrorEvent.IO_ERROR,_onConfigFailed);
+			log('loading config from '+request.url);
+			_configLoader.load(request);
+		}
+		protected function _onConfigLoaded(evt:Event):void{
+			var $data:String = _configLoader.data;
+			_params = com.adobe.serialization.json.JSON.decode($data);
+			log('config loaded');
+			_stage.addChild(this);
+		}
+		protected function _onConfigFailed(evt:Event):void{
+			log('failed to load config');
+			_stage.addChild(this);
+		}
+		protected function _onTemplateReady(e:ExperienceEvent=null):void{
+			_mediaId = _video.getCurrentVideo().referenceId;
+			log('reference id:'+_mediaId);
+			_loadConfig();
 		}
 
 		protected function _param($param:String=null,$default:*=null):*{
 			if(!_params){
-				log('loading params');
+				log('no config found, loading params');
 				_params = LoaderInfo(_stage.loaderInfo).parameters;
 			}
 			if($param==null){return _params;}
 			if(_params[$param]){return _params[$param];}
 			return $default;
-		}
-
-		public function js_onDomReady(...args):void{
-			log('from javascript: Dom is ready');
 		}
 
 		public function logChildren(parent:DisplayObjectContainer,parentName:String):void{
@@ -126,8 +158,12 @@ package Zom.Plugin{
 			_stage = _experience.getStage();
 			_stage.addEventListener(FullScreenEvent.FULL_SCREEN, _onFullScreenToggle);
 			_stage.addEventListener(Event.RESIZE, _onChangeSize);
+			if(_experience.getReady()){
+				_onTemplateReady();
+			}else{
+				_experience.addEventListener(ExperienceEvent.TEMPLATE_READY,_onTemplateReady);
+			}
 			_setBrightCoveEvents();
-			_stage.addChild(this);
 			//this.parent.setChildIndex(this,this.parent.numChildren-1);
 		}
 
@@ -194,7 +230,7 @@ package Zom.Plugin{
 		}
 
 		protected function _init():void{
-			_loadParams();
+			
 		}
 		
 		protected function _onMediaPlay(evt:MediaEvent):void{
