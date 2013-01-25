@@ -41,7 +41,7 @@ package Zom{
 
 	public class Moz extends Base{
 
-		protected var _version:String = '0.1.1.52';
+		protected var _version:String = '0.1.5.52';
 		protected var _modules:Object = {
 			 pause: {
 				on: false
