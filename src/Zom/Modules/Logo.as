@@ -138,9 +138,9 @@ package Zom.Modules{
 			log('showing ad');
 			_minutesElapsed = 0;
 			if(_texts && !_adPlaying() && !_isSeeking() && !_isBuffering() && _isPlaying()){
-				_text.gotoAndStop(_currentTextFrame);
+				_texts.gotoAndStop(_currentTextFrame);
 				_currentTextFrame++;
-				if(_currentTextFrame > _text.totalFrames){
+				if(_currentTextFrame > _texts.totalFrames){
 					_currentTextFrame = 1;
 				}
 				_show(_texts);
