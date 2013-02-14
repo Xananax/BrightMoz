@@ -1,8 +1,43 @@
 <html>
 <head><title>test</title></head>
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.9.0.js"></script>
+<style>
+.dim {
+    width:100%;
+    height:100%;
+    background:black;
+    position:absolute;
+    top:0;
+    left:0;
+    opacity:.7;
+    z-index:1000;
+    display:none;
+    pointer-events:none;
+}
+#Show a, #Show a:active, #Show a:hover, #Show a:visited {
+    z-index:3000;
+    display:block;
+    position:relative;
+    float:left;
+    margin:50px;
+    padding:10px;
+    background:black;
+    color:#999;
+    text-decoration:none;
+}
+#Show a.enabled {
+    color:white;
+}
+</style>
 <body>
+<!--
 <script type="text/javascript" src="http://admin.brightcove.com/js/BrightcoveExperiences.js"></script>
-
+<script type="text/javascript" src="./timer.js"></script>
+<script type="text/javascript" src="./test.js"></script>
+<script type="text/javascript" src="./when.js"></script>
+<script type="text/javascript" src="./bc.js"></script>
+-->
+<!--
 <object id="myExperience" class="BrightcoveExperience">
 	<param name="bgcolor" value="#000000" />
 	<param name="width" value="768" />
@@ -27,5 +62,76 @@
 </object>
 
 <script type="text/javascript">brightcove.createExperiences();</script>
+-->
+<script>
+    isIe = false;
+</script>
+<!--[if IE]>
+    <script type="text/javascript">
+        isIe = true;
+    </script>
+<![endif]-->
+<div id="Show"><a href="#">toggle (this stays on top)</a>
+<textarea id="Log" cols="60" rows="30"></textarea>
+</div>
+
+<h4>"Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit..."</h4>
+
+
+<h5>"There is no one who loves pain itself, who seeks after it and wants to have it, simply because it is pain..."</h5>
+
+<div class="box">
+    <div style="float:right;margin-left:6px;margin-bottom:6px;">
+
+        <br
+        />
+
+        <br
+        />
+    </div>
+    <div id="lipsum">
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut scelerisque
+            semper scelerisque. Aliquam mollis scelerisque libero a dapibus. Cum sociis
+            natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
+            Pellentesque rutrum erat eu magna semper semper. Phasellus sed porttitor
+            mauris. Nam dignissim turpis in lacus congue porttitor. Nulla tempus interdum
+            tincidunt. Aliquam non lacus velit, in varius quam. Morbi at odio mi. Aliquam
+            erat volutpat.</p>
+        <p>Quisque fermentum aliquam metus. Phasellus id elit quis eros vestibulum
+            condimentum. Morbi suscipit vehicula massa. Cras rhoncus pretium augue,
+            in ullamcorper libero tempor ut. Etiam non eros non purus tempus volutpat.
+            Aliquam ut augue tellus, sed bibendum lacus. Quisque ac iaculis magna.
+            Etiam ac nulla odio, et aliquet nibh. Fusce sed ipsum sit amet ipsum fermentum
+            imperdiet. Ut accumsan condimentum ullamcorper. Etiam laoreet molestie
+            mauris, faucibus consectetur tellus suscipit quis.</p>
+        <p>Nullam at est vitae ipsum luctus vehicula at sed metus. In ut justo turpis.
+            Donec in felis at ligula egestas porttitor. Nunc vitae orci non felis accumsan
+            posuere. Duis eu ultrices risus. Fusce consectetur vestibulum eros, tristique
+            malesuada enim mollis eu. Integer a nisi ligula. Cras molestie, leo porttitor
+            adipiscing gravida, lacus elit porttitor lorem, ac tempus velit velit eget
+            tellus. Maecenas ut erat ac sem vehicula laoreet eu et diam. Quisque dui
+            elit, fringilla vel ullamcorper ac, vestibulum in urna. Praesent a bibendum
+            lacus. Phasellus non iaculis lacus. Suspendisse rhoncus justo a sem vulputate
+            ut blandit lectus scelerisque. Maecenas massa neque, laoreet eget consequat
+            at, iaculis et felis.</p>
+        <p>Curabitur malesuada vulputate nisi, id placerat odio pharetra eu. Sed
+            tincidunt scelerisque scelerisque. Phasellus varius, odio vel vulputate
+            tempus, tortor ligula vehicula libero, eget fermentum neque libero nec
+            enim. Integer nec quam eu nisi sodales aliquam vitae ac velit. Phasellus
+            ultrices, lacus at cursus mollis, odio tortor tempor felis, ut placerat
+            orci nisi vel ipsum. Donec sodales mauris a arcu semper mattis. Sed viverra,
+            felis eu commodo venenatis, massa risus tristique lacus, id lacinia libero
+            arcu vitae dolor.</p>
+        <p>Maecenas blandit, orci id tincidunt fringilla, lectus felis vestibulum
+            massa, quis eleifend elit nunc ut dolor. Phasellus eu turpis sed sapien
+            molestie condimentum. Cras vulputate pulvinar dignissim. Donec iaculis
+            elementum risus in hendrerit. Vivamus consectetur mollis tortor at fermentum.
+            Curabitur nibh lorem, ultricies vel pharetra eu, semper vitae dolor. Suspendisse
+            eget arcu eu lectus consequat commodo eget rutrum risus. Nunc diam odio,
+            volutpat sit amet volutpat et, gravida eget urna. Pellentesque habitant
+            morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+            Aenean pharetra gravida lacus, in auctor quam fringilla rutrum.</p>
+        <div class="dim"></div>
 </body>
+<script type="text/javascript" src="./dim.js"></script>
 </html>

@@ -138,11 +138,8 @@ package Zom.Modules{
 			log('showing ad');
 			_minutesElapsed = 0;
 			if(_texts && !_adPlaying() && !_isSeeking() && !_isBuffering() && _isPlaying()){
-				_texts.gotoAndStop(_currentTextFrame);
 				_currentTextFrame++;
-				if(_currentTextFrame > _texts.totalFrames){
-					_currentTextFrame = 1;
-				}
+				if(_currentTextFrame > _texts.totalFrames){_currentTextFrame = 1;}
 				_show(_texts);
 				_show(_background);
 				_displayTimer.reset();
@@ -204,6 +201,7 @@ package Zom.Modules{
 
 		override protected function _hideTweenComplete(obj:DisplayObject,target:Number=0):void{
 			super._hideTweenComplete(obj,target);
+			_texts.gotoAndStop(_currentTextFrame);
 			_redrawHitArea();
 		}
 

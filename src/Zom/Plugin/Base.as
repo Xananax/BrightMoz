@@ -55,7 +55,7 @@ package Zom.Plugin{
 		protected var _adPlaying:Boolean = false;
 		protected var _configLoader:URLLoader = new URLLoader();
 		protected var _mediaId:String;
-		protected var _configUrl:String = CONFIG::debug ? 'http://yelo.cinemoz.com/%%id%%/player' :'http://www.cinemoz.com/%%id%%/player';
+		protected var _configUrl:String = CONFIG::debug ? 'http://yelo.cinemoz.com/%%id%%/player' :'http://cinemoz.com/%%id%%/player';
 
 		public function log(...args):void{
 			CONFIG::debug{
@@ -95,7 +95,14 @@ package Zom.Plugin{
 		}
 
 		protected function _loadConfig():void{
-			var request:URLRequest = new URLRequest(_configUrl.replace('%%id%%',MD5.hash(_mediaId)));
+			var url:String = ((LoaderInfo(_stage.loaderInfo)).parameters && LoaderInfo(_stage.loaderInfo).parameters.config_url)
+				|| (_stage.root.loaderInfo.parameters && _stage.root.loaderInfo.parameters.config_url)
+				|| _configUrl;
+			//log('loaderInfo');
+			//log((LoaderInfo(_stage.loaderInfo)).parameters.config_url);
+			//log('loaderInfo2');
+			//log(_stage.root.loaderInfo.parameters.config_url);
+			var request:URLRequest = new URLRequest(url.replace('%%id%%',MD5.hash(_mediaId)));
 			//request.method = URLRequestMethod.POST; 
 			//var variables : URLVariables = new URLVariables();  
 			//variables.referenceId = _mediaId;

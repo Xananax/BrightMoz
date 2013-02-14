@@ -43,6 +43,7 @@ package Zom{
 
 		protected var _version:String = '0.1.5.52';
 		protected var _modules:Object = {
+			/**
 			 pause: {
 				on: false
 			//,	img: null
@@ -54,7 +55,9 @@ package Zom{
 			,	_content:null
 			,	track_url:''
 			}
-		,	logo: {
+		,	
+		**/
+			logo: {
 				on: false
 			,	interval:'5000'
 			,	timer: '2000'
